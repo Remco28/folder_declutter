@@ -1,0 +1,8 @@
+# Runtime
+tkinterdnd2
+pywin32
+
+# Build/packaging (dev)
+pyinstaller
+pyinstaller-hooks-contrib
+

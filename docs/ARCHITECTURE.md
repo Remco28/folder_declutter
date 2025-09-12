@@ -5,11 +5,12 @@ This document outlines the architecture of the Desktop Sorter application: a lig
 ## System Components
 
 ### Core Services
-- UI Window (`src/ui/window.py`) – Floating always-on-top window; lays out up to 8 section drop zones, handles minimize-to-icon and visual highlighting during drag-over.
+- UI Window (`src/ui/window.py`) – Floating always-on-top window; lays out a fixed 2×3 grid of section drop zones, handles minimize-to-icon (later) and visual highlighting during drag-over (later).
 - Section Component (`src/ui/section.py`) – Represents a single section (label, path/type, UI state), with edit/delete controls and validity indicators.
 - Dialogs (`src/ui/dialogs.py`) – Overwrite/Cancel, Folder Move Confirmation, Invalid Folder prompts.
 - Config Manager (`src/config/config_manager.py`) – Loads/saves JSON config at `%APPDATA%/DesktopSorter/config.json`; applies defaults from `src/config/defaults.py`; maintains a small schema version.
 - File Operations (`src/file_handler/file_operations.py`) – Moves files/folders, detects conflicts, executes overwrite behavior, runs operations off the UI thread, and reports results.
+- Undo Service (`src/services/undo.py`) – Session-only multi-level undo of the last move batches; stores action groups (move/overwrite/recycle) and attempts reverse operations; surfaces failures.
 - Drag-and-Drop Bridge (`src/services/dragdrop.py`) – Wraps `tkinterdnd2` to receive Explorer drags; normalizes file paths (including multi-select) and emits drop events to the UI.
 - Windows Integration (`src/services/win_integration.py`) – Manages window handle (HWND), always-on-top, and pass-through behavior by toggling `WS_EX_TRANSPARENT` via `pywin32` (`SetWindowLong`/`GetWindowLong`).
 - Recycle Bin Service (`src/services/recycle_bin.py`) – Sends files/folders to the Recycle Bin using `SHFileOperation`/`IFileOperation` with `FOF_ALLOWUNDO` (via `pywin32`).
@@ -26,6 +27,7 @@ This document outlines the architecture of the Desktop Sorter application: a lig
         |             +-- [Worker thread pool: file moves]
         +-- DragDrop (tkinterdnd2)
         +-- Win Integration (pywin32)
+        +-- Undo Service (in-memory)
 ```
 Single process with Tk mainloop. Long-running file operations run on a small worker thread pool; results are marshaled back to the UI thread.
 
@@ -39,6 +41,14 @@ Explorer → tkinterdnd2 (Drop) → DragDrop → UI highlights target section
           → destination is Recycle Bin? → RecycleBin.send(paths)
           → else → move (cross-volume aware), report per-item success/failure
       → UI updates counts/errors; clear highlight
+      ```
+
+### Undo (Session-Only)
+```
+User clicks Undo → UndoService.pop_last_group()
+    → for each item reverse (to → from / restore backup / recycle restore)
+    → report failures (missing path, permission)
+    → UI updates: enable/disable Undo button
 ```
 
 ### Startup and Config Load
@@ -71,7 +81,7 @@ User clicks Edit → Dialog (label + folder picker) → validate path
 - Filesystem: Robust moves (cross-volume rename → copy+delete), long path prefixes (`\\?\\`) if needed, permission error handling.
 
 ## Runtime & Operations Notes
-- Pass-through behavior: The window should allow clicks to pass through when not actively handling drag/drop. Implementation toggles `WS_EX_TRANSPARENT` when idle; disable transparency while drag enters/moves over to accept drops; re-enable after drop/leave. Timing and state transitions are handled in the UI + Win Integration layers.
+- Pass-through behavior: The window should allow clicks to pass through when not actively handling drag/drop. Implementation toggles `WS_EX_TRANSPARENT` when idle; disable transparency while drag enters/moves over to accept drops; re-enable after drop/leave. Timing and state transitions are handled in the UI + Win Integration layers. The grid is fixed at 2×3 to keep the layout predictable and minimal.
 - Concurrency: Use worker threads for file operations; schedule UI updates via `Tk.after` to avoid cross-thread UI calls.
 - Packaging: `pyinstaller.spec` must include `tkinterdnd2` resources and `resources/icon.png`. Verify DnD works in the bundled .exe.
 - Observability: INFO logs include actions (drop target, counts), WARN/ERROR capture failures (path, errno). Avoid logging full sensitive paths in public builds if required.
@@ -90,4 +100,3 @@ User clicks Edit → Dialog (label + folder picker) → validate path
 
 ---
 This overview captures how components connect, where Windows integration occurs, and the expected data flows. Update it when adding new integration points or changing flows materially.
-

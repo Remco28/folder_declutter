@@ -27,10 +27,10 @@ This document outlines project phases at a slightly deeper level to guide future
 - Tasks: normalize URIs/paths; register drop targets; section highlight; emit drop events.
 - Acceptance: dropping multiple files triggers a callback with correct paths.
 
-## Phase 6 — File Operations
-- Outcomes: reliable moves with conflict handling and confirmations.
-- Tasks: threaded move_many; cross-volume copy+delete; overwrite/cancel dialog; folder move confirm.
-- Acceptance: large/mixed drops complete without freezing UI; conflicts prompt correctly.
+## Phase 6 — File Operations + Undo
+- Outcomes: reliable moves with conflict handling and confirmations; session-only multi-level Undo for last move batches.
+- Tasks: threaded move_many; cross-volume copy+delete; overwrite/cancel dialog; folder move confirm; implement Undo service (action groups for move/overwrite/recycle) and UI wiring (enable/disable, Ctrl+Z).
+- Acceptance: large/mixed drops complete without freezing UI; conflicts prompt correctly; repeated Undo reverses successive batches; failures are reported when items can’t be restored.
 
 ## Phase 7 — Recycle Bin Support
 - Outcomes: sending to Recycle Bin works using pywin32 shell APIs.
@@ -65,4 +65,3 @@ This document outlines project phases at a slightly deeper level to guide future
 ## Notes for Spec Authors
 - Derive implementation tasks from these phases; keep each spec focused and testable.
 - When adding components that change interactions (e.g., new services), update `docs/ARCHITECTURE.md`.
-

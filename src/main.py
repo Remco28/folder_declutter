@@ -96,6 +96,8 @@ def main():
         # Clean shutdown
         if 'pass_through' in locals():
             pass_through.disable()
+        if 'app' in locals():
+            app.cleanup()
         logger.info("Desktop Sorter shutting down")
 
 

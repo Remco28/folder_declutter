@@ -6,6 +6,8 @@ Contains 2x3 grid of section tiles, Recycle Bin, and Undo button
 import tkinter as tk
 import logging
 from .section import SectionTile
+from ..file_handler.file_operations import FileOperations
+from ..services.undo import UndoService
 
 
 class MainWindow(tk.Frame):
@@ -24,11 +26,16 @@ class MainWindow(tk.Frame):
         self.sections = {}
         # State tracking for drops (debugging)
         self.last_drop = None
+
+        # Initialize file operations and undo service
+        self.file_operations = FileOperations(self.parent, logger=self.logger)
+        self.undo_service = UndoService(self.parent, logger=self.logger)
         
         self._setup_ui()
         self._setup_keyboard_bindings()
         self._setup_dragdrop()
         self._load_sections_from_config()
+        self._update_undo_button()
 
         self.logger.info("MainWindow initialized")
     
@@ -257,10 +264,57 @@ class MainWindow(tk.Frame):
             'target_name': target_name
         }
 
-        # Phase 6 will implement actual file operations
-        # For now, just log the normalized paths
-        for i, path in enumerate(paths):
-            self.logger.debug(f"  [{i+1}] {path}")
+        # Handle Recycle Bin drops (Phase 7 will implement)
+        if section_id is None:
+            self.logger.warning(f"Recycle Bin drops not implemented yet - ignoring {len(paths)} items")
+            return
+
+        # Validate section exists and has path
+        if section_id not in self.sections:
+            self.logger.warning(f"Cannot drop to undefined section {section_id}")
+            return
+
+        section_data = self.sections[section_id]
+        target_dir = section_data.get('path')
+
+        if not target_dir:
+            self.logger.warning(f"Cannot drop to section {section_id} - no target path configured")
+            return
+
+        # Build move request
+        move_request = {
+            'sources': paths,
+            'target_dir': target_dir,
+            'options': {}
+        }
+
+        # Start file operation
+        self.logger.info(f"Starting move operation: {len(paths)} items to {target_dir}")
+
+        def on_move_done(batch_result, undo_actions):
+            """Handle completion of move operation"""
+            items = batch_result.get('items', [])
+
+            # Count results
+            ok_count = sum(1 for item in items if item.get('status') == 'ok')
+            skip_count = sum(1 for item in items if item.get('status') == 'skipped')
+            error_count = sum(1 for item in items if item.get('status') == 'error')
+
+            # Log summary
+            self.logger.info(f"Move completed: {ok_count} moved, {skip_count} skipped, {error_count} errors")
+
+            # Push undo actions if there were successful operations
+            if undo_actions:
+                self.undo_service.push_batch(undo_actions)
+                self._update_undo_button()
+                self.logger.info(f"Added {len(undo_actions)} actions to undo stack")
+
+            # Log errors
+            for item in items:
+                if item.get('status') == 'error':
+                    self.logger.error(f"Failed to move {item.get('src', '')}: {item.get('error', 'Unknown error')}")
+
+        self.file_operations.move_many(move_request, on_move_done)
 
     def on_add_section(self, tile):
         """Handle adding a new section to a tile"""
@@ -361,7 +415,38 @@ class MainWindow(tk.Frame):
             self.logger.debug(f"Section {section_id} persisted to config")
     
     def on_undo(self):
-        """Handle undo action (disabled in Phase 2)"""
-        self.logger.info("Undo requested (not implemented in Phase 2)")
-        # Button is disabled, but keyboard shortcut might still trigger this
-        pass
+        """Handle undo action"""
+        if not self.undo_service.can_undo():
+            self.logger.info("Undo requested but no actions available")
+            return
+
+        self.logger.info("Starting undo operation")
+
+        def on_undo_done(success_count, failure_count):
+            """Handle completion of undo operation"""
+            self.logger.info(f"Undo completed: {success_count} successful, {failure_count} failed")
+            self._update_undo_button()
+
+        self.undo_service.undo_last(on_undo_done)
+
+    def _update_undo_button(self):
+        """Update undo button state based on undo service"""
+        if self.undo_service.can_undo():
+            self.undo_button.config(state='normal')
+            batch_count = self.undo_service.get_stack_depth()
+            tooltip_text = f"Undo last action ({batch_count} batch{'es' if batch_count != 1 else ''} available)"
+        else:
+            self.undo_button.config(state='disabled')
+            tooltip_text = "Undo last action"
+
+        # Update tooltip if it exists
+        if hasattr(self.undo_button, 'tooltip_text'):
+            self.undo_button.tooltip_text = tooltip_text
+
+    def cleanup(self):
+        """Clean up resources on shutdown"""
+        if hasattr(self, 'file_operations'):
+            self.file_operations.shutdown()
+        if hasattr(self, 'undo_service'):
+            self.undo_service.shutdown()
+        self.logger.info("MainWindow cleanup completed")

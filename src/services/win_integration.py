@@ -59,8 +59,9 @@ def get_hwnd(tk_root) -> Optional[int]:
 
 def enable_pass_through(hwnd: int) -> None:
     """
-    Enable window pass-through by setting WS_EX_TRANSPARENT and WS_EX_LAYERED
-    
+    Enable window pass-through by setting WS_EX_TRANSPARENT only.
+    We avoid WS_EX_LAYERED to prevent Tk rendering issues unless paired with SetLayeredWindowAttributes.
+
     Args:
         hwnd: Windows handle
     """
@@ -71,8 +72,8 @@ def enable_pass_through(hwnd: int) -> None:
         # Get current extended styles
         ex_style = win32gui.GetWindowLong(hwnd, GWL_EXSTYLE)
         
-        # Add layered and transparent flags
-        new_style = ex_style | WS_EX_LAYERED | WS_EX_TRANSPARENT
+        # Add only transparent flag (avoid WS_EX_LAYERED to prevent blank window)
+        new_style = ex_style | WS_EX_TRANSPARENT
         
         # Apply new styles
         win32gui.SetWindowLong(hwnd, GWL_EXSTYLE, new_style)
@@ -85,8 +86,8 @@ def enable_pass_through(hwnd: int) -> None:
 
 def disable_pass_through(hwnd: int) -> None:
     """
-    Disable window pass-through by clearing WS_EX_TRANSPARENT
-    
+    Disable window pass-through by clearing both WS_EX_TRANSPARENT and WS_EX_LAYERED (defensive cleanup)
+
     Args:
         hwnd: Windows handle
     """
@@ -97,8 +98,8 @@ def disable_pass_through(hwnd: int) -> None:
         # Get current extended styles
         ex_style = win32gui.GetWindowLong(hwnd, GWL_EXSTYLE)
         
-        # Remove transparent flag but keep layered
-        new_style = ex_style & ~WS_EX_TRANSPARENT
+        # Remove both transparent and layered flags (defensive cleanup)
+        new_style = ex_style & ~(WS_EX_TRANSPARENT | WS_EX_LAYERED)
         
         # Apply new styles
         win32gui.SetWindowLong(hwnd, GWL_EXSTYLE, new_style)

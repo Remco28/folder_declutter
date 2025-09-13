@@ -173,11 +173,36 @@ class SectionTile(tk.Frame):
         """Handle Change Location context menu item"""
         from .dialogs import prompt_select_folder
         
+        root = self.winfo_toplevel()
         if self.pass_through_controller:
             with self.pass_through_controller.temporarily_disable_while(lambda: None):
-                new_path = prompt_select_folder()
+                try:
+                    root.attributes('-topmost', False)
+                except Exception:
+                    pass
+                try:
+                    new_path = prompt_select_folder(parent=root)
+                finally:
+                    try:
+                        root.attributes('-topmost', True)
+                        root.lift()
+                        root.focus_force()
+                    except Exception:
+                        pass
         else:
-            new_path = prompt_select_folder()
+            try:
+                root.attributes('-topmost', False)
+            except Exception:
+                pass
+            try:
+                new_path = prompt_select_folder(parent=root)
+            finally:
+                try:
+                    root.attributes('-topmost', True)
+                    root.lift()
+                    root.focus_force()
+                except Exception:
+                    pass
             
         if new_path and new_path != self._path:
             self.update_path(new_path)
@@ -187,11 +212,36 @@ class SectionTile(tk.Frame):
         """Handle Rename Label context menu item"""
         from .dialogs import prompt_text
         
+        root = self.winfo_toplevel()
         if self.pass_through_controller:
             with self.pass_through_controller.temporarily_disable_while(lambda: None):
-                new_label = prompt_text("Rename Label", self._label)
+                try:
+                    root.attributes('-topmost', False)
+                except Exception:
+                    pass
+                try:
+                    new_label = prompt_text("Rename Label", self._label, parent=root)
+                finally:
+                    try:
+                        root.attributes('-topmost', True)
+                        root.lift()
+                        root.focus_force()
+                    except Exception:
+                        pass
         else:
-            new_label = prompt_text("Rename Label", self._label)
+            try:
+                root.attributes('-topmost', False)
+            except Exception:
+                pass
+            try:
+                new_label = prompt_text("Rename Label", self._label, parent=root)
+            finally:
+                try:
+                    root.attributes('-topmost', True)
+                    root.lift()
+                    root.focus_force()
+                except Exception:
+                    pass
             
         if new_label and new_label != self._label:
             self.update_label(new_label)
@@ -199,17 +249,44 @@ class SectionTile(tk.Frame):
     
     def _remove_location(self):
         """Handle Remove Location context menu item"""
+        root = self.winfo_toplevel()
         if self.pass_through_controller:
             with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                try:
+                    root.attributes('-topmost', False)
+                except Exception:
+                    pass
+                try:
+                    result = messagebox.askyesno(
+                        "Remove Location",
+                        f"Remove '{self._label}' from this section?",
+                        parent=root
+                    )
+                finally:
+                    try:
+                        root.attributes('-topmost', True)
+                        root.lift()
+                        root.focus_force()
+                    except Exception:
+                        pass
+        else:
+            try:
+                root.attributes('-topmost', False)
+            except Exception:
+                pass
+            try:
                 result = messagebox.askyesno(
                     "Remove Location",
-                    f"Remove '{self._label}' from this section?"
+                    f"Remove '{self._label}' from this section?",
+                    parent=root
                 )
-        else:
-            result = messagebox.askyesno(
-                "Remove Location",
-                f"Remove '{self._label}' from this section?"
-            )
+            finally:
+                try:
+                    root.attributes('-topmost', True)
+                    root.lift()
+                    root.focus_force()
+                except Exception:
+                    pass
             
         if result:
             self.clear_section()

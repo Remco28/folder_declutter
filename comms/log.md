@@ -20,3 +20,7 @@
 [2025-09-13 11:33] [Developer]: IMPL DONE: Phase 3.1 pass-through stabilization complete - modified win_integration.py to use only WS_EX_TRANSPARENT in enable, clear both flags in disable, added comments explaining WS_EX_LAYERED avoidance
 [2025-09-13 16:16] [Architect]: REVIEW PASS: Phase 3.1 — Pass-through stabilization meets spec; archived task. Optional nit: consider simplifying temporary-disable context manager signature later.
 [2025-09-13 16:16] [Architect]: SPEC READY: Phase 4 — Config persistence (load defaults, save on changes, 6-tile schema v1, non-Windows config dir fallback).
+[2025-09-13 16:18] [Developer]: IMPL IN_PROGRESS: Phase 4 config persistence - implementing JSON config with appdata storage, 6-tile schema v1, load/save functionality
+[2025-09-13 16:20] [Developer]: IMPL DONE: Phase 4 config persistence complete - added config package with ConfigManager and defaults, JSON persistence to %APPDATA%/DesktopSorter/config.json, 6-section schema v1, automatic load/save on section changes, path validation with invalid state handling
+[2025-09-13 16:21] [Architect]: REVIEW PASS: Phase 4 — Config persistence meets spec; archived task. Notes: good atomic save, normalization to 6 slots, and non-Windows path fallback.
+[2025-09-13 16:22] [Architect]: SPEC READY: Phase 5 — Drag-and-drop integration (tkinterdnd2) with tile highlighting, drop normalization, and pass-through coordination.

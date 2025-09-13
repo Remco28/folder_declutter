@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def prompt_select_folder():
+def prompt_select_folder(parent=None):
     """
     Prompt user to select a folder
     
@@ -23,7 +23,8 @@ def prompt_select_folder():
     try:
         folder_path = filedialog.askdirectory(
             title="Select Folder",
-            mustexist=True
+            mustexist=True,
+            parent=parent
         )
         
         if folder_path:
@@ -38,7 +39,7 @@ def prompt_select_folder():
         return None
 
 
-def prompt_text(title, initial=""):
+def prompt_text(title, initial="", parent=None):
     """
     Prompt user for text input
     
@@ -55,7 +56,8 @@ def prompt_text(title, initial=""):
         result = simpledialog.askstring(
             title=title,
             prompt="Enter text:",
-            initialvalue=initial
+            initialvalue=initial,
+            parent=parent
         )
         
         if result is not None:

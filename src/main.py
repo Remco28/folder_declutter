@@ -9,6 +9,7 @@ import os
 import tkinter as tk
 from .ui.window import MainWindow
 from .services.win_integration import PassThroughController
+from .config import ConfigManager
 
 
 def setup_logging():
@@ -23,22 +24,26 @@ def main():
     """Main application entry point"""
     setup_logging()
     logger = logging.getLogger(__name__)
-    logger.info("Starting Desktop Sorter - Phase 3")
-    
+    logger.info("Starting Desktop Sorter - Phase 4")
+
+    # Load configuration early
+    config = ConfigManager.load()
+    logger.info("Configuration loaded")
+
     # Create Tk root window
     root = tk.Tk()
     root.title("Desktop Sorter")
     root.attributes('-topmost', True)
-    
+
     # Set minimum window size
     root.minsize(320, 300)
-    
+
     # Initialize Windows pass-through controller
     pass_through = PassThroughController()
     pass_through.attach(root)
-    
-    # Create and show main window
-    app = MainWindow(root, pass_through_controller=pass_through)
+
+    # Create and show main window with config and config manager
+    app = MainWindow(root, config=config, config_manager=ConfigManager, pass_through_controller=pass_through)
     app.pack(fill=tk.BOTH, expand=True)
     
     # Enable pass-through on Windows

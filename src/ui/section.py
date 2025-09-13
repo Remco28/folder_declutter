@@ -12,11 +12,12 @@ import os.path
 class SectionTile(tk.Frame):
     """Individual section tile with empty/defined states"""
     
-    def __init__(self, parent, section_id, on_add_callback, on_section_changed_callback):
+    def __init__(self, parent, section_id, on_add_callback, on_section_changed_callback, pass_through_controller=None):
         super().__init__(parent, relief=tk.RAISED, borderwidth=2, width=140, height=80)
         self.section_id = section_id
         self.on_add_callback = on_add_callback
         self.on_section_changed_callback = on_section_changed_callback
+        self.pass_through_controller = pass_through_controller
         self.logger = logging.getLogger(__name__)
         
         # Prevent frame from shrinking
@@ -52,9 +53,8 @@ class SectionTile(tk.Frame):
         self.display_label = tk.Label(
             self,
             text="+",
-            font=('Arial', 24),
-            cursor="hand2",
-            bg='lightgray'
+            font=('Arial', 24, 'bold'),
+            cursor="hand2"
         )
         self.display_label.pack(expand=True, fill=tk.BOTH)
         
@@ -72,14 +72,17 @@ class SectionTile(tk.Frame):
             widget.destroy()
         
         # Section label
-        bg_color = 'lightcoral' if not self._is_valid else 'lightblue'
+        border_color = 'red' if not self._is_valid else None
         self.display_label = tk.Label(
             self,
             text=self._label,
             font=('Arial', 10),
             wraplength=120,
             justify='center',
-            bg=bg_color
+            relief=tk.SOLID if border_color else tk.FLAT,
+            borderwidth=2 if border_color else 0,
+            highlightbackground=border_color if border_color else None,
+            highlightthickness=2 if border_color else 0
         )
         self.display_label.pack(expand=True, fill=tk.BOTH)
         
@@ -100,6 +103,8 @@ class SectionTile(tk.Frame):
         if self._path and self.display_label:
             self.display_label.bind('<Enter>', self._show_tooltip)
             self.display_label.bind('<Leave>', self._hide_tooltip)
+            # Also bind focus out on the main window
+            self.winfo_toplevel().bind('<FocusOut>', lambda e: self._hide_tooltip(None))
     
     def _unbind_tooltip(self):
         """Unbind tooltip events"""
@@ -122,6 +127,10 @@ class SectionTile(tk.Frame):
         if not self._path:
             return
         
+        # Prevent duplicate tooltips
+        if self.tooltip:
+            return
+        
         # Create tooltip window
         self.tooltip = tk.Toplevel()
         self.tooltip.wm_overrideredirect(True)
@@ -137,6 +146,9 @@ class SectionTile(tk.Frame):
             justify='left'
         )
         label.pack()
+        
+        # Bind focus out to destroy tooltip
+        self.tooltip.bind('<FocusOut>', lambda e: self._hide_tooltip(None))
     
     def _hide_tooltip(self, event):
         """Hide tooltip"""
@@ -146,7 +158,8 @@ class SectionTile(tk.Frame):
     
     def _show_context_menu(self, event):
         """Show right-click context menu"""
-        if self._path:  # Only show for defined tiles
+        # Only show for defined tiles
+        if self._path and self.context_menu:
             try:
                 self.context_menu.tk_popup(event.x_root, event.y_root)
             finally:
@@ -160,7 +173,12 @@ class SectionTile(tk.Frame):
         """Handle Change Location context menu item"""
         from .dialogs import prompt_select_folder
         
-        new_path = prompt_select_folder()
+        if self.pass_through_controller:
+            with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                new_path = prompt_select_folder()
+        else:
+            new_path = prompt_select_folder()
+            
         if new_path and new_path != self._path:
             self.update_path(new_path)
             self.logger.info(f"Section {self.section_id} location changed to: {new_path}")
@@ -169,17 +187,30 @@ class SectionTile(tk.Frame):
         """Handle Rename Label context menu item"""
         from .dialogs import prompt_text
         
-        new_label = prompt_text("Rename Label", self._label)
+        if self.pass_through_controller:
+            with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                new_label = prompt_text("Rename Label", self._label)
+        else:
+            new_label = prompt_text("Rename Label", self._label)
+            
         if new_label and new_label != self._label:
             self.update_label(new_label)
             self.logger.info(f"Section {self.section_id} renamed to: {new_label}")
     
     def _remove_location(self):
         """Handle Remove Location context menu item"""
-        result = messagebox.askyesno(
-            "Remove Location",
-            f"Remove '{self._label}' from this section?"
-        )
+        if self.pass_through_controller:
+            with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                result = messagebox.askyesno(
+                    "Remove Location",
+                    f"Remove '{self._label}' from this section?"
+                )
+        else:
+            result = messagebox.askyesno(
+                "Remove Location",
+                f"Remove '{self._label}' from this section?"
+            )
+            
         if result:
             self.clear_section()
             self.logger.info(f"Section {self.section_id} location removed")

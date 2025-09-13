@@ -4,7 +4,6 @@ Contains 2x3 grid of section tiles, Recycle Bin, and Undo button
 """
 
 import tkinter as tk
-from tkinter import ttk
 import logging
 from .section import SectionTile
 
@@ -12,10 +11,11 @@ from .section import SectionTile
 class MainWindow(tk.Frame):
     """Main application window with section grid and controls"""
     
-    def __init__(self, parent):
+    def __init__(self, parent, pass_through_controller=None):
         super().__init__(parent)
         self.parent = parent
         self.logger = logging.getLogger(__name__)
+        self.pass_through_controller = pass_through_controller
         
         # State tracking for sections (in-memory for Phase 2)
         self.sections = {}
@@ -44,7 +44,8 @@ class MainWindow(tk.Frame):
                     self.grid_frame, 
                     section_id=section_id,
                     on_add_callback=self.on_add_section,
-                    on_section_changed_callback=self.on_section_changed
+                    on_section_changed_callback=self.on_section_changed,
+                    pass_through_controller=self.pass_through_controller
                 )
                 tile.grid(row=row, column=col, padx=5, pady=5, sticky='nsew')
                 self.tiles.append(tile)
@@ -92,7 +93,7 @@ class MainWindow(tk.Frame):
     
     def _setup_keyboard_bindings(self):
         """Setup keyboard shortcuts"""
-        self.parent.bind('<Control-z>', lambda e: self.on_undo())
+        self.parent.bind_all('<Control-z>', lambda e: self.on_undo())
         self.parent.focus_set()  # Ensure window can receive key events
     
     def _add_tooltip(self, widget, text):
@@ -127,18 +128,33 @@ class MainWindow(tk.Frame):
         
         self.logger.info(f"Adding section to tile {tile.section_id}")
         
-        # Prompt for folder selection
-        folder_path = prompt_select_folder()
-        if not folder_path:
-            return
-        
-        # Prompt for label with default
-        default_label = os.path.basename(folder_path)
-        label = prompt_text("Enter Label", default_label)
-        if label is None:
-            return
-        if not label:
-            label = default_label
+        # Wrap dialog calls with pass-through disable
+        if self.pass_through_controller:
+            with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                # Prompt for folder selection
+                folder_path = prompt_select_folder()
+                if not folder_path:
+                    return
+                
+                # Prompt for label with default
+                default_label = os.path.basename(folder_path)
+                label = prompt_text("Enter Label", default_label)
+                if label is None:
+                    return
+                if not label:
+                    label = default_label
+        else:
+            # Fallback for when controller is not available
+            folder_path = prompt_select_folder()
+            if not folder_path:
+                return
+            
+            default_label = os.path.basename(folder_path)
+            label = prompt_text("Enter Label", default_label)
+            if label is None:
+                return
+            if not label:
+                label = default_label
         
         # Update tile
         tile.set_section(label, folder_path)

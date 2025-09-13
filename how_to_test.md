@@ -24,6 +24,24 @@ How to run on Linux
   - If file dialogs don’t appear on WSL/headless, you need an X/Wayland display or run on a desktop session.
   - Minor polish items (e.g., duplicate tooltips, theme colors) are slated for Phase 2.1.
 
+How to run on Windows
+
+  - Use a native Windows Python (PowerShell/CMD), not WSL.
+  - Create and activate a venv:
+      - PowerShell: python -m venv .venv; .venv\Scripts\Activate.ps1
+  - Install deps: pip install -r requirements.txt
+  - Run from repo root: python -m src.main
+
+  Windows smoke test
+  - Window shows “Desktop Sorter”, stays on top.
+  - 2×3 grid of tiles; bottom shows “Recycle Bin” and a disabled “Undo”.
+  - Pass-through is enabled by default: clicks fall through to the window underneath.
+  - Debug toggle: set in current shell `$env:DS_DND_DEBUG="1"`, then press Ctrl+Alt+P to toggle pass-through on/off. Tiles should remain visible in both states.
+  - Dialogs (Add/Change/Rename) temporarily disable pass-through while open and re-enable afterward.
+
+  WSL/WSLg note
+  - Always-on-top and Windows pass-through rely on native Win32 APIs and won’t behave correctly under WSL/WSLg. Test these features using native Windows Python.
+
   Dependencies status
 
   - In your venv: tkinterdnd2 and PyInstaller are present; pywin32 is not (expected on Linux).

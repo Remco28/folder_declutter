@@ -15,3 +15,4 @@
 [2025-09-13 10:36] [Developer]: IMPL IN_PROGRESS: Phase 3 Windows pass-through (pywin32) implementation
 [2025-09-13 10:39] [Developer]: IMPL DONE: Phase 3 Windows pass-through (pywin32) complete - PassThroughController with attach/enable/disable, dialog wrapping, debug toggle, graceful non-Windows handling
 [2025-09-13 10:40] [Architect]: REVIEW PASS: Phase 3 — Windows pass-through meets spec; archived task. Minor nit: simplify context manager signature.
+[2025-09-13 11:30] [Architect]: SPEC READY: Phase 3.1 — Pass-through stabilization (avoid WS_EX_LAYERED; clear both bits on disable); docs updated.

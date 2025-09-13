@@ -12,7 +12,7 @@ This document outlines the architecture of the Desktop Sorter application: a lig
 - File Operations (`src/file_handler/file_operations.py`) – Moves files/folders, detects conflicts, executes overwrite behavior, runs operations off the UI thread, and reports results.
 - Undo Service (`src/services/undo.py`) – Session-only multi-level undo of the last move batches; stores action groups (move/overwrite/recycle) and attempts reverse operations; surfaces failures.
 - Drag-and-Drop Bridge (`src/services/dragdrop.py`) – Wraps `tkinterdnd2` to receive Explorer drags; normalizes file paths (including multi-select) and emits drop events to the UI.
-- Windows Integration (`src/services/win_integration.py`) – Manages window handle (HWND), always-on-top, and pass-through behavior by toggling `WS_EX_TRANSPARENT` via `pywin32` (`SetWindowLong`/`GetWindowLong`).
+- Windows Integration (`src/services/win_integration.py`) – Manages window handle (HWND), always-on-top, and pass-through behavior by toggling `WS_EX_TRANSPARENT` via `pywin32` (`SetWindowLong`/`GetWindowLong`). Note: we avoid `WS_EX_LAYERED` unless paired with `SetLayeredWindowAttributes` due to Tk rendering issues; current design uses only `WS_EX_TRANSPARENT` for click-through.
 - Recycle Bin Service (`src/services/recycle_bin.py`) – Sends files/folders to the Recycle Bin using `SHFileOperation`/`IFileOperation` with `FOF_ALLOWUNDO` (via `pywin32`).
 - Error Handler (`src/file_handler/error_handler.py`) – Maps exceptions (permissions, missing paths, long-path issues) to user-facing dialogs and safe fallbacks.
 
@@ -76,12 +76,12 @@ User clicks Edit → Dialog (label + folder picker) → validate path
 ## Integration Points
 - Windows Shell APIs (pywin32):
   - Recycle Bin: `SHFileOperation`/`IFileOperation` with `FO_DELETE | FOF_ALLOWUNDO`.
-  - Window styles: `GetWindowLong/SetWindowLong` to toggle `WS_EX_TRANSPARENT` for pass-through; keep always-on-top.
+  - Window styles: `GetWindowLong/SetWindowLong` to toggle `WS_EX_TRANSPARENT` for pass-through; keep always-on-top. Avoid `WS_EX_LAYERED` to prevent blank/transparent client area with Tk.
 - TkinterDnD2: must bundle TkDND resources with PyInstaller; normalizes Explorer drops to file paths.
 - Filesystem: Robust moves (cross-volume rename → copy+delete), long path prefixes (`\\?\\`) if needed, permission error handling.
 
 ## Runtime & Operations Notes
-- Pass-through behavior: The window should allow clicks to pass through when not actively handling drag/drop. Implementation toggles `WS_EX_TRANSPARENT` when idle; disable transparency while drag enters/moves over to accept drops; re-enable after drop/leave. Timing and state transitions are handled in the UI + Win Integration layers. The grid is fixed at 2×3 to keep the layout predictable and minimal.
+- Pass-through behavior: The window should allow clicks to pass through when not actively handling drag/drop. Implementation toggles `WS_EX_TRANSPARENT` when idle; disable transparency while dialogs are open or during drag/drop; re-enable afterward. We do not set `WS_EX_LAYERED` to avoid Tk paint issues. The grid is fixed at 2×3 to keep the layout predictable and minimal.
 - Concurrency: Use worker threads for file operations; schedule UI updates via `Tk.after` to avoid cross-thread UI calls.
 - Packaging: `pyinstaller.spec` must include `tkinterdnd2` resources and `resources/icon.png`. Verify DnD works in the bundled .exe.
 - Observability: INFO logs include actions (drop target, counts), WARN/ERROR capture failures (path, errno). Avoid logging full sensitive paths in public builds if required.

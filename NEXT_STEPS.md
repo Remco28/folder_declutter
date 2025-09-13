@@ -13,9 +13,9 @@
 - [x] Phase 2: UI scaffold — Tk window, always-on-top, fixed 2×3 grid, basic tooltips and context menus. (Completed; spec archived.)
 - [x] Phase 2.1: UI polish — package init files, tooltip guard, bind_all for Ctrl+Z, neutral tile styling, context menu binding only on defined tiles.
 - [x] Phase 3: Windows pass-through — implement WS_EX_TRANSPARENT toggle via pywin32 with safe transitions; debug toggle in dev mode.
-- [ ] Phase 4: Config persistence — config manager, defaults (Recycle Bin), load/save wiring.
-- [ ] Phase 5: Drag-and-drop — integrate tkinterdnd2, multi-file drops, highlight states.
-- [ ] Phase 6: File operations + Undo — threaded moves, conflict detection, overwrite/cancel dialog, folder move confirm, session multi-level undo.
+- [x] Phase 4: Config persistence — config manager, defaults (Recycle Bin), load/save wiring. (Completed; spec archived.)
+- [x] Phase 5: Drag-and-drop — integrate tkinterdnd2, multi-file drops, highlight states. (Completed; spec archived.)
+- [x] Phase 6: File operations + Undo — threaded moves, conflict detection, overwrite/cancel dialog, session multi-level undo. (Completed; spec archived.)
 - [ ] Phase 7: Recycle Bin — send-to-bin via SHFileOperation/IFileOperation with FOF_ALLOWUNDO.
 - [ ] Phase 8: Invalid paths UX — detect missing/inaccessible folders; reselect/delete flow; visual indicators.
 - [ ] Phase 9: Packaging — PyInstaller spec, include tkdnd resources and icon; produce .exe; smoke test.
@@ -26,6 +26,7 @@
 ## Documentation
 - [ ] Create README.md (usage, build, troubleshooting)
 - [ ] Write developer notes for packaging and tkdnd bundling
+- [ ] Add Windows Recycle Bin service notes once implemented (Phase 7)
 
 ---
 

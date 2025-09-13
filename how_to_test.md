@@ -9,14 +9,15 @@ How to run on Linux
       - Option A (current layout): PYTHONPATH=src python3 src/main.py
       - Option B (after Phase 2.1 adds packages): python3 -m src.main
 
-  What to test
+  What to test (Linux dev)
 
   - Window shows “Desktop Sorter”, stays on top.
-  - 2×3 grid of tiles; bottom shows “Recycle Bin” and a disabled “Undo”.
+  - 2×3 grid of tiles; bottom shows “Recycle Bin” and an Undo button.
   - Click a “+” tile → pick a folder → enter a label → label renders.
+  - Restart the app → defined tiles persist (Phase 4).
   - Hover a defined tile → tooltip shows full path; disappears on leave.
-  - Right‑click a defined tile → Change Location…, Rename Label…, Remove Location all work.
-  - Press Ctrl+Z → should log “Undo requested (not implemented in Phase 2)”; button remains disabled.
+  - Right‑click a defined tile → Change Location…, Rename Label…, Remove Location all work and persist.
+  - Drag-and-drop from a Linux file manager may not be supported; primary DnD target is Windows Explorer.
 
   Notes and troubleshooting
 
@@ -34,10 +35,23 @@ How to run on Windows
 
   Windows smoke test
   - Window shows “Desktop Sorter”, stays on top.
-  - 2×3 grid of tiles; bottom shows “Recycle Bin” and a disabled “Undo”.
+  - 2×3 grid of tiles; bottom shows “Recycle Bin” and an Undo button (disabled until a move completes).
   - Pass-through is enabled by default: clicks fall through to the window underneath.
-  - Debug toggle: set in current shell `$env:DS_DND_DEBUG="1"`, then press Ctrl+Alt+P to toggle pass-through on/off. Tiles should remain visible in both states.
-  - Dialogs (Add/Change/Rename) temporarily disable pass-through while open and re-enable afterward.
+  - Debug toggle: set `$env:DS_DND_DEBUG="1"`, then press Ctrl+Alt+P to toggle pass-through on/off. Tiles remain visible in both states.
+  - Dialogs (Add/Change/Rename/Overwrite) temporarily disable pass-through while open and re-enable afterward. Dialogs appear above the app.
+
+  Phase 4 — Config persistence
+  - Define a few tiles; close and relaunch → tiles restore.
+  - Manually break a path in the config file → tile renders with invalid state; warning logs.
+
+  Phase 5 — Drag-and-drop
+  - Drop one or more files/folders from Explorer onto a tile → app logs the drop; tile highlights on drag-over.
+  - Recycle Bin target currently logs a warning (Phase 7 adds behavior).
+
+  Phase 6 — File operations + Undo
+  - Drop files onto a defined tile pointing to a writable folder → files move; UI remains responsive; summary logged.
+  - Conflict: drop a file with same name → Replace/Skip/Cancel dialog appears; choices apply per item; Cancel aborts remaining.
+  - Undo: after a move completes, Undo enables; pressing Undo restores moved items (and prior contents if replaced). Repeated drops produce a LIFO undo stack.
 
   WSL/WSLg note
   - Always-on-top and Windows pass-through rely on native Win32 APIs and won’t behave correctly under WSL/WSLg. Test these features using native Windows Python.
@@ -45,4 +59,4 @@ How to run on Windows
   Dependencies status
 
   - In your venv: tkinterdnd2 and PyInstaller are present; pywin32 is not (expected on Linux).
-  - For Linux testing now, you’re covered. For Phase 3, install pywin32 only on Windows.
+  - On Windows: ensure pywin32 is installed for pass-through and (Phase 7) Recycle Bin support.

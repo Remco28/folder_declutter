@@ -5,13 +5,13 @@ This document outlines the architecture of the Desktop Sorter application: a lig
 ## System Components
 
 ### Core Services
-- UI Window (`src/ui/window.py`) – Floating always-on-top window; lays out a fixed 2×3 grid of section drop zones, handles minimize-to-icon (later) and visual highlighting during drag-over (later).
+- UI Window (`src/ui/window.py`) – Floating always-on-top window; lays out a fixed 2×3 grid of section drop zones, provides visual highlighting during drag-over, and will handle minimize-to-icon later.
 - Section Component (`src/ui/section.py`) – Represents a single section (label, path/type, UI state), with edit/delete controls and validity indicators.
 - Dialogs (`src/ui/dialogs.py`) – Overwrite/Cancel, Folder Move Confirmation, Invalid Folder prompts.
 - Config Manager (`src/config/config_manager.py`) – Loads/saves JSON config at `%APPDATA%/DesktopSorter/config.json`; applies defaults from `src/config/defaults.py`; maintains a small schema version.
 - File Operations (`src/file_handler/file_operations.py`) – Moves files/folders, detects conflicts, executes overwrite behavior, runs operations off the UI thread, and reports results.
 - Undo Service (`src/services/undo.py`) – Session-only multi-level undo of the last move batches; stores action groups (move/overwrite/recycle) and attempts reverse operations; surfaces failures.
-- Drag-and-Drop Bridge (`src/services/dragdrop.py`) – Wraps `tkinterdnd2` to receive Explorer drags; normalizes file paths (including multi-select) and emits drop events to the UI.
+- Drag-and-Drop Bridge (`src/services/dragdrop.py`) – Wraps `tkinterdnd2` to receive Explorer drags; normalizes file paths (including multi-select) and emits drop events to the UI. The app creates a `TkinterDnD.Tk()` root when available; otherwise, drag-and-drop is disabled gracefully.
 - Windows Integration (`src/services/win_integration.py`) – Manages window handle (HWND), always-on-top, and pass-through behavior by toggling `WS_EX_TRANSPARENT` via `pywin32` (`SetWindowLong`/`GetWindowLong`). Note: we avoid `WS_EX_LAYERED` unless paired with `SetLayeredWindowAttributes` due to Tk rendering issues; current design uses only `WS_EX_TRANSPARENT` for click-through.
 - Recycle Bin Service (`src/services/recycle_bin.py`) – Sends files/folders to the Recycle Bin using `SHFileOperation`/`IFileOperation` with `FOF_ALLOWUNDO` (via `pywin32`).
 - Error Handler (`src/file_handler/error_handler.py`) – Maps exceptions (permissions, missing paths, long-path issues) to user-facing dialogs and safe fallbacks.
@@ -38,7 +38,7 @@ Single process with Tk mainloop. Long-running file operations run on a small wor
 Explorer → tkinterdnd2 (Drop) → DragDrop → UI highlights target section
       → FileOperations.move_many(request) [worker thread]
           → conflict? → Dialogs.overwrite_cancel (UI thread)
-          → destination is Recycle Bin? → RecycleBin.send(paths)
+          → destination is Recycle Bin? → RecycleBin.send(paths)  (Phase 7)
           → else → move (cross-volume aware), report per-item success/failure
       → UI updates counts/errors; clear highlight
       ```
@@ -83,6 +83,8 @@ User clicks Edit → Dialog (label + folder picker) → validate path
 ## Runtime & Operations Notes
 - Pass-through behavior: The window should allow clicks to pass through when not actively handling drag/drop. Implementation toggles `WS_EX_TRANSPARENT` when idle; disable transparency while dialogs are open or during drag/drop; re-enable afterward. We do not set `WS_EX_LAYERED` to avoid Tk paint issues. The grid is fixed at 2×3 to keep the layout predictable and minimal.
 - Concurrency: Use worker threads for file operations; schedule UI updates via `Tk.after` to avoid cross-thread UI calls.
+- Drag sessions: DragDropBridge tracks a drag sequence across tiles; pass-through is disabled on first enter and restored once the drag leaves the toplevel or on drop, preserving the prior pass-through state.
+- Dialog z-order: Dialogs are parented to the main window; the app temporarily clears `-topmost` so system dialogs (folder picker, text input, overwrite) appear above, then restores it afterward.
 - Packaging: `pyinstaller.spec` must include `tkinterdnd2` resources and `resources/icon.png`. Verify DnD works in the bundled .exe.
 - Observability: INFO logs include actions (drop target, counts), WARN/ERROR capture failures (path, errno). Avoid logging full sensitive paths in public builds if required.
 - Accessibility/UX: Labels are readable by screen readers; highlight state visible in high contrast.
@@ -97,6 +99,10 @@ User clicks Edit → Dialog (label + folder picker) → validate path
 - Scope: `scope.md`
 - Structure: `structure.md`
 - Task specs: `comms/tasks/YYYY-MM-DD-*.md`
+
+## Implementation Status
+- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo).
+- In Progress/Next: Phase 7 (Recycle Bin support). Until then, drops on the Recycle Bin target log a warning and perform no action.
 
 ---
 This overview captures how components connect, where Windows integration occurs, and the expected data flows. Update it when adding new integration points or changing flows materially.

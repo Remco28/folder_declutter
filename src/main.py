@@ -9,7 +9,15 @@ import os
 import tkinter as tk
 from .ui.window import MainWindow
 from .services.win_integration import PassThroughController
+from .services.dragdrop import DragDropBridge
 from .config import ConfigManager
+
+# Try to import tkinterdnd2 for proper root initialization
+try:
+    from tkinterdnd2 import TkinterDnD
+    TKINTERDND2_AVAILABLE = True
+except ImportError:
+    TKINTERDND2_AVAILABLE = False
 
 
 def setup_logging():
@@ -30,8 +38,14 @@ def main():
     config = ConfigManager.load()
     logger.info("Configuration loaded")
 
-    # Create Tk root window
-    root = tk.Tk()
+    # Create Tk root window with TkinterDnD support if available
+    if TKINTERDND2_AVAILABLE:
+        root = TkinterDnD.Tk()
+        logger.info("Created TkinterDnD root window")
+    else:
+        root = tk.Tk()
+        logger.info("Created standard Tk root window (TkinterDnD not available)")
+
     root.title("Desktop Sorter")
     root.attributes('-topmost', True)
 
@@ -42,8 +56,17 @@ def main():
     pass_through = PassThroughController()
     pass_through.attach(root)
 
-    # Create and show main window with config and config manager
-    app = MainWindow(root, config=config, config_manager=ConfigManager, pass_through_controller=pass_through)
+    # Initialize drag-and-drop bridge
+    dragdrop_bridge = DragDropBridge(root, pass_through_controller=pass_through)
+
+    # Create and show main window with config, config manager, and drag-drop
+    app = MainWindow(
+        root,
+        config=config,
+        config_manager=ConfigManager,
+        pass_through_controller=pass_through,
+        dragdrop_bridge=dragdrop_bridge
+    )
     app.pack(fill=tk.BOTH, expand=True)
     
     # Enable pass-through on Windows

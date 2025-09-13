@@ -350,3 +350,28 @@ class SectionTile(tk.Frame):
                 'kind': 'folder'
             }
             self.on_section_changed_callback(self.section_id, section_data)
+
+    def set_drag_highlight(self, on: bool):
+        """
+        Set drag-and-drop highlight state
+
+        Args:
+            on: True to enable highlight, False to disable
+        """
+        if on:
+            # Enable drag highlight - change relief and add visual emphasis
+            self.config(relief=tk.SOLID, borderwidth=3)
+            # Store original background to restore later
+            if not hasattr(self, '_original_bg'):
+                self._original_bg = self.cget('bg')
+            # Set highlight background color
+            self.config(bg='lightblue')
+            self.logger.debug(f"Section {self.section_id} drag highlight enabled")
+        else:
+            # Disable drag highlight - restore original appearance
+            self.config(relief=tk.RAISED, borderwidth=2)
+            # Restore original background if it was stored
+            if hasattr(self, '_original_bg'):
+                self.config(bg=self._original_bg)
+                delattr(self, '_original_bg')
+            self.logger.debug(f"Section {self.section_id} drag highlight disabled")

@@ -11,19 +11,23 @@ from .section import SectionTile
 class MainWindow(tk.Frame):
     """Main application window with section grid and controls"""
     
-    def __init__(self, parent, config=None, config_manager=None, pass_through_controller=None):
+    def __init__(self, parent, config=None, config_manager=None, pass_through_controller=None, dragdrop_bridge=None):
         super().__init__(parent)
         self.parent = parent
         self.logger = logging.getLogger(__name__)
         self.pass_through_controller = pass_through_controller
+        self.dragdrop_bridge = dragdrop_bridge
         self.config = config or {}
         self.config_manager = config_manager
 
         # State tracking for sections (now persistent via config)
         self.sections = {}
+        # State tracking for drops (debugging)
+        self.last_drop = None
         
         self._setup_ui()
         self._setup_keyboard_bindings()
+        self._setup_dragdrop()
         self._load_sections_from_config()
 
         self.logger.info("MainWindow initialized")
@@ -162,6 +166,101 @@ class MainWindow(tk.Frame):
                     self.logger.debug(f"Loaded section {section_id}: {label} -> {path}")
 
         self.logger.info(f"Loaded {len([s for s in self.sections.values()])} sections from config")
+
+    def _setup_dragdrop(self):
+        """Setup drag-and-drop integration"""
+        if not self.dragdrop_bridge or not self.dragdrop_bridge.is_available():
+            self.logger.info("Drag-and-drop not available or disabled")
+            return
+
+        # Register each section tile as a drop target
+        for tile in self.tiles:
+            self._register_tile_drop_target(tile)
+
+        # Register recycle bin as drop target
+        self._register_recycle_bin_drop_target()
+
+        self.logger.info("Drag-and-drop integration setup complete")
+
+        # Bind to toplevel window leave events to handle drag cancellation
+        self.parent.bind('<Leave>', self._on_window_leave)
+
+    def _register_tile_drop_target(self, tile):
+        """Register a section tile as a drop target"""
+        section_id = tile.section_id
+
+        def on_enter(event):
+            tile.set_drag_highlight(True)
+            self.dragdrop_bridge._start_drag_sequence()
+            self.logger.debug(f"Drag enter on tile {section_id}")
+
+        def on_leave(event):
+            tile.set_drag_highlight(False)
+            # Don't restore pass-through here - only on final drop or window leave
+            self.logger.debug(f"Drag leave on tile {section_id}")
+
+        def on_drop(event):
+            tile.set_drag_highlight(False)
+            paths = self.dragdrop_bridge.parse_drop_data(event.data)
+            self.on_drop(section_id, paths)
+            self.dragdrop_bridge._end_drag_sequence()
+            self.logger.debug(f"Drop on tile {section_id}: {len(paths)} items")
+
+        self.dragdrop_bridge.register_widget(tile, on_enter, on_leave, on_drop)
+
+    def _register_recycle_bin_drop_target(self):
+        """Register recycle bin label as a drop target"""
+        def on_enter(event):
+            self.recycle_bin_label.config(relief=tk.SUNKEN)
+            self.dragdrop_bridge._start_drag_sequence()
+            self.logger.debug("Drag enter on recycle bin")
+
+        def on_leave(event):
+            self.recycle_bin_label.config(relief=tk.RAISED)
+            # Don't restore pass-through here - only on final drop or window leave
+            self.logger.debug("Drag leave on recycle bin")
+
+        def on_drop(event):
+            self.recycle_bin_label.config(relief=tk.RAISED)
+            paths = self.dragdrop_bridge.parse_drop_data(event.data)
+            self.on_drop(None, paths)  # None indicates recycle bin
+            self.dragdrop_bridge._end_drag_sequence()
+            self.logger.debug(f"Drop on recycle bin: {len(paths)} items")
+
+        self.dragdrop_bridge.register_widget(self.recycle_bin_label, on_enter, on_leave, on_drop)
+
+    def _on_window_leave(self, event):
+        """Handle mouse leaving the toplevel window during drag operations"""
+        # Only trigger if the event is from the toplevel window itself
+        if event.widget is self.parent:
+            if self.dragdrop_bridge and hasattr(self.dragdrop_bridge, '_drag_in_progress'):
+                if self.dragdrop_bridge._drag_in_progress:
+                    # End drag sequence if drag was in progress
+                    self.dragdrop_bridge._end_drag_sequence()
+                    self.logger.debug("Drag sequence ended due to toplevel window leave")
+
+    def on_drop(self, section_id, paths):
+        """
+        Handle drop events from drag-and-drop
+
+        Args:
+            section_id: Target section ID (0-5) or None for recycle bin
+            paths: List of absolute file/folder paths
+        """
+        target_name = f"section {section_id}" if section_id is not None else "Recycle Bin"
+        self.logger.info(f"Drop to {target_name}: {len(paths)} items")
+
+        # Store for debugging
+        self.last_drop = {
+            'section_id': section_id,
+            'paths': paths,
+            'target_name': target_name
+        }
+
+        # Phase 6 will implement actual file operations
+        # For now, just log the normalized paths
+        for i, path in enumerate(paths):
+            self.logger.debug(f"  [{i+1}] {path}")
 
     def on_add_section(self, tile):
         """Handle adding a new section to a tile"""

@@ -5,9 +5,12 @@ Contains 2x3 grid of section tiles, Recycle Bin, and Undo button
 
 import tkinter as tk
 import logging
+import os
 from .section import SectionTile
 from ..file_handler.file_operations import FileOperations
 from ..services.undo import UndoService
+from ..services.recycle_bin import RecycleBinService
+from .dialogs import prompt_confirm_recycle
 
 
 class MainWindow(tk.Frame):
@@ -30,6 +33,7 @@ class MainWindow(tk.Frame):
         # Initialize file operations and undo service
         self.file_operations = FileOperations(self.parent, logger=self.logger)
         self.undo_service = UndoService(self.parent, logger=self.logger)
+        self.recycle_bin_service = RecycleBinService(self.parent, logger=self.logger)
         
         self._setup_ui()
         self._setup_keyboard_bindings()
@@ -264,9 +268,9 @@ class MainWindow(tk.Frame):
             'target_name': target_name
         }
 
-        # Handle Recycle Bin drops (Phase 7 will implement)
+        # Handle Recycle Bin drops
         if section_id is None:
-            self.logger.warning(f"Recycle Bin drops not implemented yet - ignoring {len(paths)} items")
+            self._handle_recycle_bin_drop(paths)
             return
 
         # Validate section exists and has path
@@ -429,6 +433,66 @@ class MainWindow(tk.Frame):
 
         self.undo_service.undo_last(on_undo_done)
 
+    def _handle_recycle_bin_drop(self, paths):
+        """
+        Handle dropping files/folders onto the Recycle Bin
+
+        Args:
+            paths: List of absolute file/folder paths to recycle
+        """
+        if not self.recycle_bin_service.is_available():
+            self.logger.warning(f"Recycle bin operations not available - ignoring {len(paths)} items")
+            return
+
+        # Check if confirmation is needed
+        should_confirm = len(paths) >= 5 or os.getenv('DS_CONFIRM_RECYCLE') == '1'
+
+        if should_confirm:
+            self.logger.info(f"Requesting confirmation for recycling {len(paths)} items")
+
+            # Temporarily disable pass-through and topmost for dialog
+            if self.pass_through_controller:
+                with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                    try:
+                        self.parent.attributes('-topmost', False)
+                    except Exception:
+                        pass
+                    try:
+                        if not prompt_confirm_recycle(len(paths), parent=self.parent):
+                            self.logger.info("Recycle operation cancelled by user")
+                            return
+                    finally:
+                        try:
+                            self.parent.attributes('-topmost', True)
+                        except Exception:
+                            pass
+            else:
+                if not prompt_confirm_recycle(len(paths), parent=self.parent):
+                    self.logger.info("Recycle operation cancelled by user")
+                    return
+
+        # Start recycle operation
+        self.logger.info(f"Starting recycle operation: {len(paths)} items")
+
+        def on_recycle_done(results):
+            """Handle completion of recycle operation"""
+            # Count results
+            ok_count = sum(1 for r in results if r.get('status') == 'ok')
+            error_count = len(results) - ok_count
+
+            # Log summary
+            self.logger.info(f"Recycle completed: {ok_count} moved to recycle bin, {error_count} errors")
+
+            # Log individual errors
+            for result in results:
+                if result.get('status') == 'error':
+                    self.logger.error(f"Failed to recycle {result.get('path', '')}: {result.get('error', 'Unknown error')}")
+
+            # Note: Do not push to undo stack for recycle bin operations
+            # Users can restore from Windows Recycle Bin if needed
+
+        self.recycle_bin_service.delete_many(paths, on_recycle_done)
+
     def _update_undo_button(self):
         """Update undo button state based on undo service"""
         if self.undo_service.can_undo():
@@ -449,4 +513,6 @@ class MainWindow(tk.Frame):
             self.file_operations.shutdown()
         if hasattr(self, 'undo_service'):
             self.undo_service.shutdown()
+        if hasattr(self, 'recycle_bin_service'):
+            self.recycle_bin_service.shutdown()
         self.logger.info("MainWindow cleanup completed")

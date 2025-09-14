@@ -13,7 +13,7 @@ This document outlines the architecture of the Desktop Sorter application: a lig
 - Undo Service (`src/services/undo.py`) – Session-only multi-level undo of the last move batches; stores action groups (move/overwrite/recycle) and attempts reverse operations; surfaces failures.
 - Drag-and-Drop Bridge (`src/services/dragdrop.py`) – Wraps `tkinterdnd2` to receive Explorer drags; normalizes file paths (including multi-select) and emits drop events to the UI. The app creates a `TkinterDnD.Tk()` root when available; otherwise, drag-and-drop is disabled gracefully.
 - Windows Integration (`src/services/win_integration.py`) – Manages window handle (HWND), always-on-top, and pass-through behavior by toggling `WS_EX_TRANSPARENT` via `pywin32` (`SetWindowLong`/`GetWindowLong`). Note: we avoid `WS_EX_LAYERED` unless paired with `SetLayeredWindowAttributes` due to Tk rendering issues; current design uses only `WS_EX_TRANSPARENT` for click-through.
-- Recycle Bin Service (`src/services/recycle_bin.py`) – Sends files/folders to the Recycle Bin using `SHFileOperation`/`IFileOperation` with `FOF_ALLOWUNDO` (via `pywin32`).
+- Recycle Bin Service (`src/services/recycle_bin.py`) – Sends files/folders to the Windows Recycle Bin using `IFileOperation` (preferred) or `SHFileOperation` (fallback) with `FOF_ALLOWUNDO` (via `pywin32`). Runs operations in background threads with per-item result reporting. Includes optional confirmation dialog for large batches.
 - Error Handler (`src/file_handler/error_handler.py`) – Maps exceptions (permissions, missing paths, long-path issues) to user-facing dialogs and safe fallbacks.
 
 ### Supporting Services
@@ -38,7 +38,7 @@ Single process with Tk mainloop. Long-running file operations run on a small wor
 Explorer → tkinterdnd2 (Drop) → DragDrop → UI highlights target section
       → FileOperations.move_many(request) [worker thread]
           → conflict? → Dialogs.overwrite_cancel (UI thread)
-          → destination is Recycle Bin? → RecycleBin.send(paths)  (Phase 7)
+          → destination is Recycle Bin? → RecycleBinService.delete_many(paths, on_done)
           → else → move (cross-volume aware), report per-item success/failure
       → UI updates counts/errors; clear highlight
       ```
@@ -75,7 +75,7 @@ User clicks Edit → Dialog (label + folder picker) → validate path
 
 ## Integration Points
 - Windows Shell APIs (pywin32):
-  - Recycle Bin: `SHFileOperation`/`IFileOperation` with `FO_DELETE | FOF_ALLOWUNDO`.
+  - Recycle Bin: Prefers `IFileOperation` with `FOF_ALLOWUNDO | FOF_NOCONFIRMMKDIR | FOF_SILENT | FOF_NOCONFIRMATION` for Vista+; falls back to `SHFileOperation` with `FO_DELETE | FOF_ALLOWUNDO | FOF_SILENT | FOF_NOCONFIRMATION` for older systems.
   - Window styles: `GetWindowLong/SetWindowLong` to toggle `WS_EX_TRANSPARENT` for pass-through; keep always-on-top. Avoid `WS_EX_LAYERED` to prevent blank/transparent client area with Tk.
 - TkinterDnD2: must bundle TkDND resources with PyInstaller; normalizes Explorer drops to file paths.
 - Filesystem: Robust moves (cross-volume rename → copy+delete), long path prefixes (`\\?\\`) if needed, permission error handling.
@@ -101,8 +101,7 @@ User clicks Edit → Dialog (label + folder picker) → validate path
 - Task specs: `comms/tasks/YYYY-MM-DD-*.md`
 
 ## Implementation Status
-- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo).
-- In Progress/Next: Phase 7 (Recycle Bin support). Until then, drops on the Recycle Bin target log a warning and perform no action.
+- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo), Phase 7 (Recycle Bin support with Windows shell integration).
 
 ---
 This overview captures how components connect, where Windows integration occurs, and the expected data flows. Update it when adding new integration points or changing flows materially.

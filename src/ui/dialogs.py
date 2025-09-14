@@ -164,3 +164,88 @@ def prompt_overwrite(target_path: str, parent=None):
     except Exception as e:
         logger.error(f"Error in overwrite dialog: {e}")
         return None
+
+
+def prompt_confirm_recycle(count: int, parent=None) -> bool:
+    """
+    Prompt user for confirmation before recycling files
+
+    Args:
+        count (int): Number of items to be recycled
+        parent: Parent window for dialog
+
+    Returns:
+        bool: True to proceed with recycle, False to cancel
+    """
+    logger.debug(f"Prompting for recycle confirmation: {count} items")
+
+    try:
+        # Create custom dialog
+        dialog = tk.Toplevel(parent)
+        dialog.title("Confirm Recycle")
+        dialog.resizable(False, False)
+        dialog.grab_set()  # Make modal
+
+        # Center dialog over parent
+        if parent:
+            parent.update_idletasks()
+            x = parent.winfo_x() + (parent.winfo_width() // 2) - 200
+            y = parent.winfo_y() + (parent.winfo_height() // 2) - 100
+            dialog.geometry(f"400x200+{x}+{y}")
+        else:
+            dialog.geometry("400x200+400+300")
+
+        # Dialog content
+        frame = tk.Frame(dialog, padx=20, pady=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        # Icon and message
+        icon_label = tk.Label(frame, text="🗑️", font=('Arial', 24))
+        icon_label.pack(pady=(0, 10))
+
+        item_text = "item" if count == 1 else "items"
+        message = tk.Label(frame,
+                          text=f"Are you sure you want to move {count} {item_text} to the Recycle Bin?\n\nThis action can be undone from the Recycle Bin.",
+                          font=('Arial', 10),
+                          justify=tk.CENTER,
+                          wraplength=350)
+        message.pack(pady=(0, 20))
+
+        # Result variable
+        result = [False]
+
+        # Button frame
+        button_frame = tk.Frame(frame)
+        button_frame.pack()
+
+        def on_recycle():
+            result[0] = True
+            dialog.destroy()
+
+        def on_cancel():
+            result[0] = False
+            dialog.destroy()
+
+        # Buttons
+        recycle_btn = tk.Button(button_frame, text="Recycle", command=on_recycle, width=10)
+        recycle_btn.pack(side=tk.LEFT, padx=5)
+
+        cancel_btn = tk.Button(button_frame, text="Cancel", command=on_cancel, width=10)
+        cancel_btn.pack(side=tk.LEFT, padx=5)
+
+        # Keyboard shortcuts
+        dialog.bind('<Return>', lambda e: on_recycle())
+        dialog.bind('<Escape>', lambda e: on_cancel())
+
+        # Set focus and wait
+        recycle_btn.focus_set()
+        dialog.wait_window()
+
+        choice = result[0]
+        logger.info(f"Recycle confirmation for {count} items: {'proceed' if choice else 'cancelled'}")
+
+        return choice
+
+    except Exception as e:
+        logger.error(f"Error in recycle confirmation dialog: {e}")
+        return False

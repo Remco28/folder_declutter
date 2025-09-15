@@ -178,14 +178,24 @@ def prompt_overwrite(target_path: str, parent=None):
         dialog.bind('<Return>', lambda e: on_replace())
         dialog.bind('<Escape>', lambda e: on_cancel())
 
-        # Position and show dialog
+        # Position and show dialog (size to content, then center)
         if parent:
             parent.update_idletasks()
-            x = parent.winfo_x() + (parent.winfo_width() // 2) - 200
-            y = parent.winfo_y() + (parent.winfo_height() // 2) - 100
-            dialog.geometry(f"400x200+{x}+{y}")
+            # Let layout compute natural size first
+            dialog.update_idletasks()
+            w = dialog.winfo_reqwidth()
+            h = dialog.winfo_reqheight()
+            # Ensure a minimum comfortable size
+            w = max(w, 520)
+            h = max(h, 260)
+            x = parent.winfo_x() + (parent.winfo_width() - w) // 2
+            y = parent.winfo_y() + (parent.winfo_height() - h) // 2
+            dialog.geometry(f"{w}x{h}+{x}+{y}")
         else:
-            dialog.geometry("400x200+400+300")
+            dialog.update_idletasks()
+            w = max(dialog.winfo_reqwidth(), 520)
+            h = max(dialog.winfo_reqheight(), 260)
+            dialog.geometry(f"{w}x{h}+400+300")
 
         # Wait for geometry to settle before showing
         dialog.update_idletasks()

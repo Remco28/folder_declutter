@@ -64,8 +64,48 @@ def main():
     root.title("Desktop Sorter")
     root.attributes('-topmost', True)
 
-    # Set minimum window size
-    root.minsize(320, 300)
+    # Set DPI-aware scaling for Tk and reasonable default geometry
+    if platform.system() == 'Windows':
+        try:
+            # Compute Tk scaling from monitor DPI
+            # Prefer GetDpiForWindow when available (Win10+)
+            user32 = ctypes.windll.user32
+            dpi = 96
+            try:
+                hwnd = root.winfo_id()
+                # GetDpiForWindow returns DPI (96 = 100%)
+                GetDpiForWindow = getattr(user32, 'GetDpiForWindow', None)
+                if GetDpiForWindow:
+                    dpi = GetDpiForWindow(hwnd)
+                else:
+                    # Fallback: use screen DC
+                    import win32gui, win32con
+                    hdc = win32gui.GetDC(0)
+                    dpi = win32gui.GetDeviceCaps(hdc, 88)  # LOGPIXELSX
+                    win32gui.ReleaseDC(0, hdc)
+            except Exception:
+                pass
+
+            scaling = max(1.0, dpi / 72.0)
+            try:
+                root.tk.call('tk', 'scaling', scaling)
+                logger.info(f"Tk scaling set to {scaling:.2f} (DPI={dpi})")
+            except Exception as e:
+                logger.warning(f"Failed to set Tk scaling: {e}")
+        except Exception:
+            pass
+
+    # Set minimum and initial window size
+    root.minsize(600, 420)
+    try:
+        # Centered reasonable default size
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        w, h = 800, 560
+        x = (sw - w) // 2
+        y = (sh - h) // 3
+        root.geometry(f"{w}x{h}+{x}+{y}")
+    except Exception:
+        root.geometry("800x560")
 
     # Initialize Windows pass-through controller
     pass_through = PassThroughController()

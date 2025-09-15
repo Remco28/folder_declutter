@@ -257,6 +257,17 @@ class LayeredOverlay:
 
         try:
             self._update_layered_window(x, y)
+            # Ensure the position is applied at the OS level as well
+            try:
+                import win32con
+                win32gui.SetWindowPos(
+                    self.hwnd,
+                    win32con.HWND_TOPMOST,
+                    x, y, 0, 0,
+                    win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE | win32con.SWP_SHOWWINDOW
+                )
+            except Exception:
+                pass
         except Exception as e:
             self.logger.error(f"Error moving overlay: {e}")
 

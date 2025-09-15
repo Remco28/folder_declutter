@@ -7,6 +7,8 @@ Phase 2: UI Scaffold with 2x3 grid and Undo button placeholder
 import logging
 import os
 import tkinter as tk
+import platform
+import ctypes
 from .ui.window import MainWindow
 from .services.win_integration import PassThroughController
 from .services.dragdrop import DragDropBridge
@@ -33,6 +35,19 @@ def main():
     setup_logging()
     logger = logging.getLogger(__name__)
     logger.info("Starting Desktop Sorter - Phase 4")
+
+    # Make process DPI aware on Windows to avoid OS bitmap scaling (blurry overlays)
+    if platform.system() == 'Windows':
+        try:
+            # Try Per-Monitor DPI awareness (Windows 8.1+)
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+            logger.info("DPI awareness set: Per-Monitor V2")
+        except Exception:
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()
+                logger.info("DPI awareness set: System DPI Aware")
+            except Exception as e:
+                logger.warning(f"Failed to set DPI awareness: {e}")
 
     # Load configuration early
     config = ConfigManager.load()

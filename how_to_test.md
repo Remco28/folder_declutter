@@ -58,7 +58,8 @@ How to run on Windows
   - Minimize the app → a borderless, topmost overlay shows only the logo (no white rectangle) centered over the main window's last position.
   - Click the logo → main window restores (deiconify + raise + focus) and the overlay hides.
   - Drag the logo to move it (overlay only). Minimize again → overlay appears centered over the main window (ignores prior overlay drag position when minimizing).
-  - On high-DPI displays, verify the logo scales up: size ≈ min(screen_w, screen_h)/4.2 clamped to [192, 512] and never upscaled beyond source. Expect slight edge halos due to chroma-key transparency.
+  - On high-DPI displays, verify the logo scales up: size ≈ min(screen_w, screen_h)/4.2 clamped to [192, 512] and never upscaled beyond source. With layered overlay enabled, edges should be smooth (no halos). Ensure the app is DPI-aware (process should not be scaled by OS).
+  - Dragging: press and move the mouse; the logo should follow smoothly. A quick click (≤ 200 ms, ≤ 2 px movement) restores the main window. A long press without movement does nothing.
 
   WSL/WSLg note
   - Always-on-top and Windows pass-through rely on native Win32 APIs and won’t behave correctly under WSL/WSLg. Test these features using native Windows Python.

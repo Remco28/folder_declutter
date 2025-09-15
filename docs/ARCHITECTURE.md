@@ -99,7 +99,8 @@ Click overlay → hide overlay → deiconify + raise + focus main window
     - Flags compatibility (Phase 7.1): include `FOFX_NOCOPYSECURITYATTRIBS` only if available; otherwise omit and continue, falling back to `SHFileOperation` if IFileOperation setup fails.
   - File moves: Uses `IFileOperation.MoveItem` per item (Windows) with flags `FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOCONFIRMMKDIR` (+ `FOFX_NOCOPYSECURITYATTRIBS` when available) to trigger native shell notifications so Desktop/Explorer views update instantly. Falls back to `shutil.move` if unavailable or on failure.
 - Window styles: `GetWindowLong/SetWindowLong` to toggle `WS_EX_TRANSPARENT` for pass-through; keep always-on-top. Avoid `WS_EX_LAYERED` to prevent blank/transparent client area with Tk.
- - Tk overlay transparency (Windows): `Toplevel(overrideredirect=True, -topmost)` with `wm_attributes('-transparentcolor', '#FF00FF')`; overlay and content widgets use the same background key color. PNG alpha is composited by Tk against this key color, which can create slight edge halos; acceptable for this phase.
+ - Tk overlay transparency (Windows): `Toplevel(overrideredirect=True, -topmost)` with `wm_attributes('-transparentcolor', '#FF00FF')`; overlay and content widgets use the same background key color. PNG alpha is composited by Tk against this key color, which can create slight edge halos.
+ - Layered overlay (Windows): Native `WS_EX_LAYERED` popup window with `UpdateLayeredWindow` using a premultiplied BGRA bitmap for perfect edges; input handled via window proc for drag and quick-click restore. Process is set DPI-aware to prevent OS scaling blur.
 - TkinterDnD2: must bundle TkDND resources with PyInstaller; normalizes Explorer drops to file paths.
 - Filesystem: Robust moves (cross-volume rename → copy+delete), long path prefixes (`\\?\\`) if needed, permission error handling.
 

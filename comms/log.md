@@ -89,3 +89,4 @@
 
 [2025-09-15 15:30] [CLAUDE]: IMPL DONE: Phase 10C Windows layered overlay with per-pixel alpha complete - created LayeredOverlay class with WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TOPMOST window, UpdateLayeredWindow with BGRA bitmap and AC_SRC_ALPHA blending for perfect transparency, mouse handling with WM_LBUTTONDOWN/MOUSEMOVE/LBUTTONUP for drag-to-move and quick-click restore (≤200ms, ≤1px), integrated into MiniOverlay with automatic Windows detection and fallback to chroma-key transparency, proper GDI resource management and cleanup
 [2025-09-15 12:17] [Architect]: REVIEW PASS (with minor fix): Phase 10C — Layered overlay, quick-click; scheduled restore on Tk thread. Archived spec.
+[2025-09-15 12:27] [Architect]: IMPL REVIEW FIXES: 10C polish — premultiplied alpha, screen-space drag, DPI awareness.

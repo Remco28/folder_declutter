@@ -52,6 +52,7 @@ class LayeredOverlay:
         self.mouse_down = False
         self.mouse_start_time = 0
         self.mouse_start_pos = (0, 0)
+        self.mouse_start_screen = (0, 0)
         self.window_start_pos = (0, 0)
         self.total_movement = 0
 
@@ -170,9 +171,19 @@ class LayeredOverlay:
             bmi.bmiHeader.biBitCount = 32
             bmi.bmiHeader.biCompression = 0  # BI_RGB
 
-            # Get image data as BGRA for Windows
+            # Get image data as premultiplied BGRA for Windows layered windows
             r, g, b, a = image.split()
-            bgra_image = Image.merge('RGBA', (b, g, r, a))
+            try:
+                from PIL import ImageChops
+                rp = ImageChops.multiply(r, a)  # r * a / 255
+                gp = ImageChops.multiply(g, a)
+                bp = ImageChops.multiply(b, a)
+            except Exception:
+                # Fallback: no premultiply (may cause slight edge halos)
+                rp, gp, bp = r, g, b
+
+            # Reorder to BGRA by placing B in R slot, etc., then get raw bytes
+            bgra_image = Image.merge('RGBA', (bp, gp, rp, a))
             bgra_data = bgra_image.tobytes()
 
             # Create DIB section using ctypes
@@ -330,6 +341,10 @@ class LayeredOverlay:
         self.mouse_down = True
         self.mouse_start_time = time.time()
         self.mouse_start_pos = (x, y)
+        try:
+            self.mouse_start_screen = win32gui.GetCursorPos()
+        except Exception:
+            self.mouse_start_screen = (0, 0)
         self.total_movement = 0
 
         # Get current window position
@@ -346,12 +361,19 @@ class LayeredOverlay:
         if not self.mouse_down:
             return
 
-        x = lparam & 0xFFFF
-        y = (lparam >> 16) & 0xFFFF
+        # Use screen coordinates for robust drag irrespective of client origin shifts
+        try:
+            cur_x, cur_y = win32gui.GetCursorPos()
+        except Exception:
+            # Fallback to client coords if needed
+            x = lparam & 0xFFFF
+            y = (lparam >> 16) & 0xFFFF
+            cur_x = self.window_start_pos[0] + x
+            cur_y = self.window_start_pos[1] + y
 
-        # Calculate movement from start
-        dx = x - self.mouse_start_pos[0]
-        dy = y - self.mouse_start_pos[1]
+        # Calculate movement from start (screen space)
+        dx = cur_x - self.mouse_start_screen[0]
+        dy = cur_y - self.mouse_start_screen[1]
         movement = abs(dx) + abs(dy)  # Manhattan distance
 
         self.total_movement = max(self.total_movement, movement)
@@ -372,11 +394,16 @@ class LayeredOverlay:
 
         # Calculate timing and movement
         duration = time.time() - self.mouse_start_time
+        try:
+            end_x, end_y = win32gui.GetCursorPos()
+        except Exception:
+            end_x, end_y = self.mouse_start_screen
+        total = abs(end_x - self.mouse_start_screen[0]) + abs(end_y - self.mouse_start_screen[1])
 
         self.logger.debug(f"Mouse up: duration={duration:.3f}s, movement={self.total_movement}px")
 
-        # Quick click restore: ≤ 200ms and ≤ 1px movement
-        if duration <= 0.2 and self.total_movement <= 1:
+        # Quick click restore: ≤ 200ms and ≤ 2px movement
+        if duration <= 0.2 and total <= 2:
             self.logger.info("Quick click detected - triggering restore")
             # The callback should be thread-safe or handle threading internally
             try:

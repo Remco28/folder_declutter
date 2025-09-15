@@ -16,6 +16,20 @@ from .error_handler import log_error
 
 logger = logging.getLogger(__name__)
 
+# Platform detection and optional Windows shell imports
+import sys
+IS_WINDOWS = sys.platform == "win32"
+if IS_WINDOWS:
+    try:
+        import pythoncom
+        from win32com.shell import shell, shellcon
+        from pywintypes import com_error
+        PYWIN32_AVAILABLE = True
+    except Exception:
+        PYWIN32_AVAILABLE = False
+else:
+    PYWIN32_AVAILABLE = False
+
 
 class FileOperations:
     """
@@ -104,9 +118,9 @@ class FileOperations:
 
         self.executor.submit(work)
 
-    def _move_one(self, src: Path, dest: Path, backups_dir: Path, options: Dict) -> tuple[Dict, List[Dict]]:
+    def _move_one_shutil(self, src: Path, dest: Path, backups_dir: Path, options: Dict) -> tuple[Dict, List[Dict]]:
         """
-        Move a single file/folder with conflict handling
+        Move a single file/folder with conflict handling using shutil
 
         Args:
             src: Source path
@@ -170,6 +184,109 @@ class FileOperations:
             result['error'] = error_msg
 
         return result, actions
+
+    def _move_one_windows_shell(self, src: Path, dest: Path, backups_dir: Path, options: Dict) -> tuple[Dict, List[Dict]]:
+        """
+        Move a single item using Windows IFileOperation (per-item to preserve cancel semantics)
+        """
+        result = {
+            'src': str(src),
+            'dest': str(dest),
+            'status': 'ok',
+            'conflict': False
+        }
+        actions: List[Dict] = []
+
+        try:
+            # If destination exists, handle conflict via prompt
+            if dest.exists():
+                result['conflict'] = True
+                overwrite_choice = options.get('overwrite')
+                if not overwrite_choice:
+                    choice = self._prompt_overwrite_main_thread(dest)
+                    if choice is None:
+                        result['status'] = 'cancelled'
+                        result['cancelled'] = True
+                        return result, actions
+                    overwrite_choice = choice
+
+                if overwrite_choice == 'skip':
+                    result['status'] = 'skipped'
+                    return result, actions
+                elif overwrite_choice == 'replace':
+                    backup_path = self._make_unique_backup(dest, backups_dir)
+                    shutil.move(str(dest), str(backup_path))
+                    actions.append({
+                        'kind': 'replace',
+                        'dest': str(dest),
+                        'backup': str(backup_path)
+                    })
+                    self.logger.debug(f"Created backup: {dest} -> {backup_path}")
+
+            # Initialize COM in this worker thread
+            pythoncom.CoInitialize()
+            try:
+                file_op = pythoncom.CoCreateInstance(
+                    shell.CLSID_FileOperation,
+                    None,
+                    pythoncom.CLSCTX_INPROC_SERVER,
+                    shell.IID_IFileOperation
+                )
+
+                flags = (
+                    shellcon.FOF_SILENT |
+                    shellcon.FOF_NOCONFIRMATION |
+                    shellcon.FOF_NOCONFIRMMKDIR
+                )
+                extra_flag = getattr(shellcon, 'FOFX_NOCOPYSECURITYATTRIBS', 0)
+                if extra_flag:
+                    flags |= extra_flag
+                file_op.SetOperationFlags(flags)
+
+                abs_src = str(src.resolve())
+                abs_target_dir = str(dest.parent.resolve())
+                src_item = shell.SHCreateItemFromParsingName(abs_src, None, shell.IID_IShellItem)
+                target_dir_item = shell.SHCreateItemFromParsingName(abs_target_dir, None, shell.IID_IShellItem)
+
+                file_op.MoveItem(src_item, target_dir_item, None, None)
+
+                try:
+                    file_op.PerformOperations()
+                except com_error as e:
+                    self.logger.error(f"IFileOperation.PerformOperations failed: {e}")
+                    raise
+            finally:
+                try:
+                    pythoncom.CoUninitialize()
+                except Exception:
+                    pass
+
+            actions.append({
+                'kind': 'move',
+                'src': str(src),
+                'dest': str(dest)
+            })
+            self.logger.debug(f"Shell moved: {src} -> {dest}")
+
+        except Exception as e:
+            error_msg = log_error(e, str(src), self.logger)
+            result['status'] = 'error'
+            result['error'] = error_msg
+
+        return result, actions
+
+    def _move_one(self, src: Path, dest: Path, backups_dir: Path, options: Dict) -> tuple[Dict, List[Dict]]:
+        """
+        Dispatch to Windows shell move if available, else shutil
+        """
+        if IS_WINDOWS and PYWIN32_AVAILABLE:
+            try:
+                return self._move_one_windows_shell(src, dest, backups_dir, options)
+            except Exception as e:
+                self.logger.warning(f"Shell move failed for {src} -> {dest}, falling back to shutil: {e}")
+                return self._move_one_shutil(src, dest, backups_dir, options)
+        else:
+            return self._move_one_shutil(src, dest, backups_dir, options)
 
     def _prompt_overwrite_main_thread(self, dest_path: Path) -> Optional[str]:
         """

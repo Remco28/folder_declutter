@@ -444,7 +444,7 @@ class MiniOverlay:
         self.logger.debug(f"Set last overlay position: ({x}, {y})")
 
     def _bind_events(self):
-        """Bind mouse events for drag and click"""
+        """Bind mouse events for drag and double-click"""
         if not self.overlay_label:
             return
 
@@ -453,9 +453,10 @@ class MiniOverlay:
             widget.bind('<Button-1>', self._on_click)
             widget.bind('<B1-Motion>', self._on_drag)
             widget.bind('<ButtonRelease-1>', self._on_release)
+            widget.bind('<Double-Button-1>', self._on_double_click)
 
     def _on_click(self, event):
-        """Handle mouse click - start potential drag or restore"""
+        """Handle mouse click - start potential drag"""
         self.drag_data['x'] = event.x_root
         self.drag_data['y'] = event.y_root
         self.drag_data['dragging'] = False
@@ -487,17 +488,19 @@ class MiniOverlay:
             self.drag_data['y'] = event.y_root
 
     def _on_release(self, event):
-        """Handle mouse release - restore if not dragging"""
+        """Handle mouse release - only handle drag end, no single-click restore"""
         try:
-            if not self.drag_data['dragging']:
-                # Click without drag - restore main window
-                self.logger.info("Overlay clicked - restoring main window")
-                self.on_restore()
-            else:
+            if self.drag_data['dragging']:
                 # Drag ended - log final position
                 final_x = self.overlay.winfo_x()
                 final_y = self.overlay.winfo_y()
                 self.logger.info(f"Overlay dragged to: ({final_x}, {final_y})")
                 self.last_position = (final_x, final_y)
+            # No single-click restore - only double-click triggers restore
         finally:
             self.drag_data['dragging'] = False
+
+    def _on_double_click(self, event):
+        """Handle double-click - restore main window"""
+        self.logger.info("Overlay double-clicked - restoring main window")
+        self.on_restore()

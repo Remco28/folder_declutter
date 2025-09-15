@@ -48,13 +48,8 @@ class LayeredOverlay:
         self.height = 0
         self.is_visible = False
 
-        # Mouse handling state
-        self.mouse_down = False
-        self.mouse_start_time = 0
-        self.mouse_start_pos = (0, 0)
-        self.mouse_start_screen = (0, 0)
-        self.window_start_pos = (0, 0)
-        self.total_movement = 0
+        # Optional move tracking for future diagnostics
+        self.in_move_loop = False
 
         # GDI resources
         self.hdc_screen = None
@@ -78,13 +73,14 @@ class LayeredOverlay:
         try:
             self.width, self.height = image.size
 
-            # Register window class
+            # Register window class with double-click support
             wc = win32gui.WNDCLASS()
             wc.hInstance = win32gui.GetModuleHandle(None)
             wc.lpszClassName = "LayeredOverlayClass"
             wc.lpfnWndProc = self._window_proc
             wc.hbrBackground = None
             wc.hCursor = win32gui.LoadCursor(0, win32con.IDC_ARROW)
+            wc.style = win32con.CS_DBLCLKS  # Enable double-click messages
 
             try:
                 win32gui.RegisterClass(wc)
@@ -327,16 +323,28 @@ class LayeredOverlay:
         """Window procedure for handling mouse events"""
         try:
             if msg == win32con.WM_NCHITTEST:
+                # Let Windows handle dragging - entire window is draggable
                 return win32con.HTCAPTION
-            if msg == win32con.WM_LBUTTONDOWN:
-                self._on_mouse_down(lparam)
+
+            elif msg == win32con.WM_ENTERSIZEMOVE:
+                # Optional safety hook for future diagnostics
+                self.in_move_loop = True
                 return 0
-            elif msg == win32con.WM_MOUSEMOVE:
-                self._on_mouse_move(lparam)
+
+            elif msg == win32con.WM_EXITSIZEMOVE:
+                # Optional safety hook for future diagnostics
+                self.in_move_loop = False
                 return 0
-            elif msg == win32con.WM_LBUTTONUP:
-                self._on_mouse_up(lparam)
+
+            elif msg in (win32con.WM_NCLBUTTONDBLCLK, win32con.WM_LBUTTONDBLCLK):
+                # Double-click to restore
+                self.logger.info("Double-click detected - triggering restore")
+                try:
+                    self.on_restore()
+                except Exception as e:
+                    self.logger.error(f"Error triggering restore: {e}")
                 return 0
+
             elif msg == win32con.WM_DESTROY:
                 self.is_visible = False
                 return 0
@@ -346,93 +354,8 @@ class LayeredOverlay:
 
         return win32gui.DefWindowProc(hwnd, msg, wparam, lparam)
 
-    def _on_mouse_down(self, lparam):
-        """Handle mouse button down"""
-        x = lparam & 0xFFFF
-        y = (lparam >> 16) & 0xFFFF
-
-        self.mouse_down = True
-        self.mouse_start_time = time.time()
-        self.mouse_start_pos = (x, y)
-        try:
-            self.mouse_start_screen = win32gui.GetCursorPos()
-        except Exception:
-            self.mouse_start_screen = (0, 0)
-        self.total_movement = 0
-
-        # Get current window position
-        rect = win32gui.GetWindowRect(self.hwnd)
-        self.window_start_pos = (rect[0], rect[1])
-
-        # Rely on OS dragging via HTCAPTION; do not set capture
-        # win32gui.SetCapture(self.hwnd)
-
-        self.logger.debug(f"Mouse down at ({x}, {y})")
-
-    def _on_mouse_move(self, lparam):
-        """Handle mouse move"""
-        if not self.mouse_down:
-            return
-
-        # Use screen coordinates for robust drag irrespective of client origin shifts
-        try:
-            cur_x, cur_y = win32gui.GetCursorPos()
-        except Exception:
-            # Fallback to client coords if needed
-            x = lparam & 0xFFFF
-            y = (lparam >> 16) & 0xFFFF
-            cur_x = self.window_start_pos[0] + x
-            cur_y = self.window_start_pos[1] + y
-
-        # Calculate movement from start (screen space)
-        dx = cur_x - self.mouse_start_screen[0]
-        dy = cur_y - self.mouse_start_screen[1]
-        movement = abs(dx) + abs(dy)  # Manhattan distance
-
-        self.total_movement = max(self.total_movement, movement)
-
-        # If movement > 1 pixel, treat as drag
-        if movement > 1:
-            new_x = self.window_start_pos[0] + dx
-            new_y = self.window_start_pos[1] + dy
-            self.move(new_x, new_y)
-
-    def _on_mouse_up(self, lparam):
-        """Handle mouse button up"""
-        if not self.mouse_down:
-            return
-
-        # Release mouse capture (not set when using HTCAPTION)
-        # win32gui.ReleaseCapture()
-
-        # Calculate timing and movement
-        duration = time.time() - self.mouse_start_time
-        try:
-            end_x, end_y = win32gui.GetCursorPos()
-        except Exception:
-            end_x, end_y = self.mouse_start_screen
-        total = abs(end_x - self.mouse_start_screen[0]) + abs(end_y - self.mouse_start_screen[1])
-
-        self.logger.debug(f"Mouse up: duration={duration:.3f}s, movement={self.total_movement}px")
-
-        # Detect if OS moved the window (position changed)
-        moved = False
-        try:
-            rect = win32gui.GetWindowRect(self.hwnd)
-            moved = (rect[0], rect[1]) != self.window_start_pos
-        except Exception:
-            pass
-
-        # Quick click restore only if not moved and within threshold
-        if not moved and duration <= 0.2 and total <= 2:
-            self.logger.info("Quick click detected - triggering restore")
-            # The callback should be thread-safe or handle threading internally
-            try:
-                self.on_restore()
-            except Exception as e:
-                self.logger.error(f"Error triggering restore: {e}")
-
-        self.mouse_down = False
+    # Manual drag logic removed - Windows handles dragging via HTCAPTION
+    # Restore is now only triggered by double-click
 
     def __del__(self):
         """Destructor - ensure cleanup"""

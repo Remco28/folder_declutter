@@ -54,12 +54,12 @@ How to run on Windows
   - Conflict: drop a file with same name → Replace/Skip/Cancel dialog appears above the main window; button labels are visible; choices apply per item; Cancel aborts remaining.
   - Undo: after a move completes, Undo enables; pressing Undo restores moved items (and prior contents if replaced). Repeated drops produce a LIFO undo stack.
 
-  Phase 10B — Overlay transparency, centering, dynamic sizing (Windows)
+  Phase 10B/10C — Overlay transparency, OS drag, double-click restore (Windows)
   - Minimize the app → a borderless, topmost overlay shows only the logo (no white rectangle) centered over the main window's last position.
-  - Click the logo → main window restores (deiconify + raise + focus) and the overlay hides.
-  - Drag the logo to move it (overlay only). Minimize again → overlay appears centered over the main window (ignores prior overlay drag position when minimizing).
-  - On high-DPI displays, verify the logo scales up: size ≈ min(screen_w, screen_h)/4.2 clamped to [192, 512] and never upscaled beyond source. With layered overlay enabled, edges should be smooth (no halos). Ensure the app is DPI-aware (process should not be scaled by OS).
-  - Dragging: press and move the mouse; the logo should follow smoothly. A quick click (≤ 200 ms, ≤ 2 px movement) restores the main window. A long press without movement does nothing.
+  - Drag: click-and-hold anywhere on the overlay and move → the overlay follows smoothly; releasing the mouse does not restore.
+  - Restore: double-click the overlay → main window restores (deiconify + raise + focus) and the overlay hides.
+  - Minimize again → overlay appears centered over the main window (it does not remember the overlay's prior drag position when minimizing).
+  - On high-DPI displays, verify the logo scales up: size ≈ min(screen_w, screen_h)/4.2 clamped to [192, 512] and never upscaled beyond source. With layered overlay enabled (Windows), edges should be crisp (no halos). Ensure the process is DPI-aware (no OS scaling blur).
 
   WSL/WSLg note
   - Always-on-top and Windows pass-through rely on native Win32 APIs and won’t behave correctly under WSL/WSLg. Test these features using native Windows Python.

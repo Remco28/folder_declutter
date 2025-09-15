@@ -1,5 +1,5 @@
 """
-MainWindow - Desktop Sorter main UI window
+MainWindow - Kondor Decluttering Assistant main UI window
 Contains 2x3 grid of section tiles, Recycle Bin, and Undo button
 """
 

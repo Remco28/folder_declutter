@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Desktop Sorter - Main Entry Point
+Kondor Decluttering Assistant - Main Entry Point
 Phase 2: UI Scaffold with 2x3 grid and Undo button placeholder
 """
 
@@ -34,7 +34,7 @@ def main():
     """Main application entry point"""
     setup_logging()
     logger = logging.getLogger(__name__)
-    logger.info("Starting Desktop Sorter - Phase 4")
+    logger.info("Starting Kondor Decluttering Assistant - Phase 4")
 
     # Make process DPI aware on Windows to avoid OS bitmap scaling (blurry overlays)
     if platform.system() == 'Windows':
@@ -61,7 +61,7 @@ def main():
         root = tk.Tk()
         logger.info("Created standard Tk root window (TkinterDnD not available)")
 
-    root.title("Desktop Sorter")
+    root.title("Kondor Decluttering Assistant")
     root.attributes('-topmost', True)
 
     # Set DPI-aware scaling for Tk and reasonable default geometry
@@ -153,7 +153,7 @@ def main():
             pass_through.disable()
         if 'app' in locals():
             app.cleanup()
-        logger.info("Desktop Sorter shutting down")
+        logger.info("Kondor Decluttering Assistant shutting down")
 
 
 if __name__ == "__main__":

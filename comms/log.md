@@ -109,3 +109,5 @@
 
 [2025-09-15 18:00] [CLAUDE]: IMPL DONE: Explorer refresh after moves complete - added SHChangeNotify shell notifications with _shell_notify_updatedir() for per-item updates, _shell_notify_many() for batched updates, touched directory collection during moves, Desktop-specific notifications with CSIDL_DESKTOPDIRECTORY/CSIDL_COMMON_DESKTOPDIRECTORY support, integrated with both IFileOperation and shutil move paths, updated how_to_test.md with verification steps
 [2025-09-15 14:44] [Architect]: REVIEW PASS: Explorer refresh via SHChangeNotify implemented; archived task.
+
+[2025-09-15 18:05] [CLAUDE]: IMPL DONE: App renamed to "Kondor Decluttering Assistant" - updated window title in main.py, log messages, and main UI window comment. Config directory names unchanged for now.

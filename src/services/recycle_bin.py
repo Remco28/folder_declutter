@@ -85,7 +85,7 @@ class RecycleBinService:
             try:
                 results = self._delete_with_ifileoperation(paths)
             except Exception as e:
-                self.logger.warning(f"IFileOperation failed, falling back to SHFileOperation: {e}")
+                self.logger.warning(f"IFileOperation setup failed, falling back to SHFileOperation: {e}")
                 try:
                     results = self._delete_with_shfileoperation(paths)
                 except Exception as e2:
@@ -112,10 +112,15 @@ class RecycleBinService:
 
         Returns:
             List of result dictionaries
+
+        Raises:
+            Exception: If setup fails (COM init, object creation, or flag setting)
+                      to allow fallback to SHFileOperation
         """
         results = []
 
         try:
+            # Setup phase - any failure here should trigger fallback
             # Initialize COM in this thread
             pythoncom.CoInitialize()
 
@@ -131,12 +136,28 @@ class RecycleBinService:
             flags = (
                 shellcon.FOF_ALLOWUNDO |  # Send to recycle bin
                 shellcon.FOF_NOCONFIRMMKDIR |  # Don't confirm directory creation
-                shellcon.FOFX_NOCOPYSECURITYATTRIBS |  # Don't copy security attributes
                 shellcon.FOF_SILENT |  # Don't show progress dialog
                 shellcon.FOF_NOCONFIRMATION  # Don't confirm each delete
             )
+
+            # Add optional flag if available (compatibility for older pywin32/SDKs)
+            extra_flag = getattr(shellcon, 'FOFX_NOCOPYSECURITYATTRIBS', 0)
+            if extra_flag:
+                flags |= extra_flag
+            else:
+                logger.debug('IFileOperation: FOFX_NOCOPYSECURITYATTRIBS not available; proceeding without it')
             file_op.SetOperationFlags(flags)
 
+        except Exception as e:
+            # Setup failed - re-raise to trigger SHFileOperation fallback
+            try:
+                pythoncom.CoUninitialize()
+            except:
+                pass  # Ignore cleanup errors
+            raise e
+
+        # Per-item operations phase - individual failures are handled in results
+        try:
             # Add each item to delete operation
             for path in paths:
                 try:
@@ -168,13 +189,6 @@ class RecycleBinService:
                             result["status"] = "error"
                             result["error"] = f"Batch operation failed: {e}"
 
-        except Exception as e:
-            # If we couldn't set up the operation at all, mark all as failed
-            error_msg = log_error(e, None, self.logger)
-            results = [
-                {"path": path, "status": "error", "error": error_msg}
-                for path in paths
-            ]
         finally:
             try:
                 pythoncom.CoUninitialize()

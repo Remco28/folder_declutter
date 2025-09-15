@@ -326,6 +326,8 @@ class LayeredOverlay:
     def _window_proc(self, hwnd, msg, wparam, lparam):
         """Window procedure for handling mouse events"""
         try:
+            if msg == win32con.WM_NCHITTEST:
+                return win32con.HTCAPTION
             if msg == win32con.WM_LBUTTONDOWN:
                 self._on_mouse_down(lparam)
                 return 0
@@ -362,8 +364,8 @@ class LayeredOverlay:
         rect = win32gui.GetWindowRect(self.hwnd)
         self.window_start_pos = (rect[0], rect[1])
 
-        # Capture mouse
-        win32gui.SetCapture(self.hwnd)
+        # Rely on OS dragging via HTCAPTION; do not set capture
+        # win32gui.SetCapture(self.hwnd)
 
         self.logger.debug(f"Mouse down at ({x}, {y})")
 
@@ -400,8 +402,8 @@ class LayeredOverlay:
         if not self.mouse_down:
             return
 
-        # Release mouse capture
-        win32gui.ReleaseCapture()
+        # Release mouse capture (not set when using HTCAPTION)
+        # win32gui.ReleaseCapture()
 
         # Calculate timing and movement
         duration = time.time() - self.mouse_start_time
@@ -413,8 +415,16 @@ class LayeredOverlay:
 
         self.logger.debug(f"Mouse up: duration={duration:.3f}s, movement={self.total_movement}px")
 
-        # Quick click restore: ≤ 200ms and ≤ 2px movement
-        if duration <= 0.2 and total <= 2:
+        # Detect if OS moved the window (position changed)
+        moved = False
+        try:
+            rect = win32gui.GetWindowRect(self.hwnd)
+            moved = (rect[0], rect[1]) != self.window_start_pos
+        except Exception:
+            pass
+
+        # Quick click restore only if not moved and within threshold
+        if not moved and duration <= 0.2 and total <= 2:
             self.logger.info("Quick click detected - triggering restore")
             # The callback should be thread-safe or handle threading internally
             try:

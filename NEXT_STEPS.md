@@ -16,8 +16,11 @@
 - [x] Phase 4: Config persistence — config manager, defaults (Recycle Bin), load/save wiring. (Completed; spec archived.)
 - [x] Phase 5: Drag-and-drop — integrate tkinterdnd2, multi-file drops, highlight states. (Completed; spec archived.)
 - [x] Phase 6: File operations + Undo — threaded moves, conflict detection, overwrite/cancel dialog, session multi-level undo. (Completed; spec archived.)
-- [ ] Phase 7: Recycle Bin — send-to-bin via SHFileOperation/IFileOperation with FOF_ALLOWUNDO.
-- [ ] Phase 8: Invalid paths UX — detect missing/inaccessible folders; reselect/delete flow; visual indicators.
+- [x] Phase 7: Recycle Bin — send-to-bin via IFileOperation with FOF_ALLOWUNDO (fallback SHFileOperation). (Completed; spec archived.)
+- [x] Phase 7.1: Recycle Bin flags compatibility — guard missing `FOFX_NOCOPYSECURITYATTRIBS`; robust fallback to SHFileOperation. (Completed; spec archived.)
+ - [ ] Phase 8: Invalid paths UX — detect missing/inaccessible folders; reselect/remove flow; visual indicators; block drops until resolved.
+ - [ ] Phase 8.1: Context menu robustness — lazy toplevel-parented menu; existence checks; safe popup wrapper.
+ - [ ] Phase 8.2: Section reset — one‑stop “Reset Section…” to re-pick folder and label.
 - [ ] Phase 9: Packaging — PyInstaller spec, include tkdnd resources and icon; produce .exe; smoke test.
 - [ ] Phase 10: Accessibility & polish — labels readable, high-contrast, keyboard nav basics; visual refinements.
 - [ ] Phase 11: Logging & diagnostics — rotating file logs in %APPDATA%; optional DnD debug flag.
@@ -26,7 +29,8 @@
 ## Documentation
 - [ ] Create README.md (usage, build, troubleshooting)
 - [ ] Write developer notes for packaging and tkdnd bundling
-- [ ] Add Windows Recycle Bin service notes once implemented (Phase 7)
+- [x] Add Windows Recycle Bin service notes once implemented (Phase 7)
+ - [ ] Document Invalid Paths UX (Phase 8), Context Menu Robustness (Phase 8.1), Section Reset (Phase 8.2), and Minimize-to-Overlay (Phase 10A)
 
 ---
 

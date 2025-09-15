@@ -15,6 +15,7 @@ This document outlines the architecture of the Desktop Sorter application: a lig
 - Windows Integration (`src/services/win_integration.py`) – Manages window handle (HWND), always-on-top, and pass-through behavior by toggling `WS_EX_TRANSPARENT` via `pywin32` (`SetWindowLong`/`GetWindowLong`). Note: we avoid `WS_EX_LAYERED` unless paired with `SetLayeredWindowAttributes` due to Tk rendering issues; current design uses only `WS_EX_TRANSPARENT` for click-through.
 - Recycle Bin Service (`src/services/recycle_bin.py`) – Sends files/folders to the Windows Recycle Bin using `IFileOperation` (preferred) or `SHFileOperation` (fallback) with `FOF_ALLOWUNDO` (via `pywin32`). Runs operations in background threads with per-item result reporting. Includes optional confirmation dialog for large batches.
 - Error Handler (`src/file_handler/error_handler.py`) – Maps exceptions (permissions, missing paths, long-path issues) to user-facing dialogs and safe fallbacks.
+ - Mini Overlay (`src/ui/mini_overlay.py`, planned) – Small floating always-on-top overlay shown when the app is minimized; displays a resizable logo (scaled by screen resolution), supports drag-to-move and click-to-restore.
 
 ### Supporting Services
 - Logging – Standard Python logging; file handler writes to `%APPDATA%/DesktopSorter/logs/app.log` with rotation.
@@ -59,8 +60,26 @@ main → ConfigManager.load(appdata_path) → apply defaults (Recycle Bin sectio
 
 ### Edit Section
 ```
-User clicks Edit → Dialog (label + folder picker) → validate path
-    → ConfigManager.update_and_save → Window refreshes section state
+User can:
+  - Change Location… → prompt_select_folder → update path
+  - Rename Label… → prompt_text → update label
+  - Reset Section… (Phase 8.2) → prompt_select_folder → prompt_text → update path+label in one flow
+Validation: ConfigManager.update_and_save → Window refreshes section state
+```
+
+### Invalid Paths UX (Phase 8)
+```
+Startup: tiles with missing/not-writable paths render invalid (red border + subtitle)
+Drop to invalid: block move → prompt_invalid_target (Reselect/Remove/Cancel)
+  → Reselect: user picks folder → section updates → proceed with pending move
+  → Remove/Cancel: no action taken
+```
+
+### Minimize to Overlay (Phase 10A)
+```
+Minimize main window → show MiniOverlay (borderless, topmost) with scaled icon
+Drag overlay to reposition (session memory)
+Click overlay → hide overlay → deiconify + raise + focus main window
 ```
 
 ## Key Abstractions
@@ -76,12 +95,14 @@ User clicks Edit → Dialog (label + folder picker) → validate path
 ## Integration Points
 - Windows Shell APIs (pywin32):
   - Recycle Bin: Prefers `IFileOperation` with `FOF_ALLOWUNDO | FOF_NOCONFIRMMKDIR | FOF_SILENT | FOF_NOCONFIRMATION` for Vista+; falls back to `SHFileOperation` with `FO_DELETE | FOF_ALLOWUNDO | FOF_SILENT | FOF_NOCONFIRMATION` for older systems.
+    - Flags compatibility (Phase 7.1): include `FOFX_NOCOPYSECURITYATTRIBS` only if available; otherwise omit and continue, falling back to `SHFileOperation` if IFileOperation setup fails.
   - Window styles: `GetWindowLong/SetWindowLong` to toggle `WS_EX_TRANSPARENT` for pass-through; keep always-on-top. Avoid `WS_EX_LAYERED` to prevent blank/transparent client area with Tk.
 - TkinterDnD2: must bundle TkDND resources with PyInstaller; normalizes Explorer drops to file paths.
 - Filesystem: Robust moves (cross-volume rename → copy+delete), long path prefixes (`\\?\\`) if needed, permission error handling.
 
 ## Runtime & Operations Notes
 - Pass-through behavior: The window should allow clicks to pass through when not actively handling drag/drop. Implementation toggles `WS_EX_TRANSPARENT` when idle; disable transparency while dialogs are open or during drag/drop; re-enable afterward. We do not set `WS_EX_LAYERED` to avoid Tk paint issues. The grid is fixed at 2×3 to keep the layout predictable and minimal.
+ - Context menu robustness (Phase 8.1): Context menus are toplevel-parented, created lazily, checked for existence at popup, and retried safely to avoid Tcl command invalidation during widget redraws.
 - Concurrency: Use worker threads for file operations; schedule UI updates via `Tk.after` to avoid cross-thread UI calls.
 - Drag sessions: DragDropBridge tracks a drag sequence across tiles; pass-through is disabled on first enter and restored once the drag leaves the toplevel or on drop, preserving the prior pass-through state.
 - Dialog z-order: Dialogs are parented to the main window; the app temporarily clears `-topmost` so system dialogs (folder picker, text input, overwrite) appear above, then restores it afterward.
@@ -101,7 +122,8 @@ User clicks Edit → Dialog (label + folder picker) → validate path
 - Task specs: `comms/tasks/YYYY-MM-DD-*.md`
 
 ## Implementation Status
-- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo), Phase 7 (Recycle Bin support with Windows shell integration).
+- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo), Phase 7 (Recycle Bin support with Windows shell integration), Phase 7.1 (Recycle Bin flags compatibility + robust fallback).
+- Planned: Phase 8 (Invalid paths UX), Phase 8.1 (Context menu robustness), Phase 8.2 (Section reset), Phase 10A (Minimize to overlay).
 
 ---
 This overview captures how components connect, where Windows integration occurs, and the expected data flows. Update it when adding new integration points or changing flows materially.

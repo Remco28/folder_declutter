@@ -10,7 +10,7 @@ from .section import SectionTile
 from ..file_handler.file_operations import FileOperations
 from ..services.undo import UndoService
 from ..services.recycle_bin import RecycleBinService
-from .dialogs import prompt_confirm_recycle
+from .dialogs import prompt_confirm_recycle, prompt_invalid_target, prompt_select_folder
 
 
 class MainWindow(tk.Frame):
@@ -158,9 +158,11 @@ class MainWindow(tk.Frame):
 
             # Only load sections that have both label and path
             if label and path:
-                # Validate path exists and log warning if invalid
+                # Validate path and log detailed reason if invalid
                 if not os.path.exists(path):
-                    self.logger.warning(f"Section {section_id} has invalid path: {path}")
+                    self.logger.warning(f"Section {section_id} '{label}' has invalid path: {path} (Folder not found)")
+                elif not os.access(path, os.W_OK):
+                    self.logger.warning(f"Section {section_id} '{label}' has invalid path: {path} (No write permission)")
 
                 # Set the section on the corresponding tile
                 if section_id < len(self.tiles):
@@ -283,6 +285,17 @@ class MainWindow(tk.Frame):
 
         if not target_dir:
             self.logger.warning(f"Cannot drop to section {section_id} - no target path configured")
+            # Route to invalid section recovery flow
+            tile = self.tiles[section_id]
+            self._handle_invalid_section_drop(section_id, paths, tile)
+            return
+
+        # Check if section is valid - revalidate at drop time
+        tile = self.tiles[section_id]
+        if not tile.revalidate():
+            # Section is invalid - show recovery dialog
+            self.logger.warning(f"Drop to invalid section {section_id}: {tile.get_invalid_reason()}")
+            self._handle_invalid_section_drop(section_id, paths, tile)
             return
 
         # Build move request
@@ -295,30 +308,7 @@ class MainWindow(tk.Frame):
         # Start file operation
         self.logger.info(f"Starting move operation: {len(paths)} items to {target_dir}")
 
-        def on_move_done(batch_result, undo_actions):
-            """Handle completion of move operation"""
-            items = batch_result.get('items', [])
-
-            # Count results
-            ok_count = sum(1 for item in items if item.get('status') == 'ok')
-            skip_count = sum(1 for item in items if item.get('status') == 'skipped')
-            error_count = sum(1 for item in items if item.get('status') == 'error')
-
-            # Log summary
-            self.logger.info(f"Move completed: {ok_count} moved, {skip_count} skipped, {error_count} errors")
-
-            # Push undo actions if there were successful operations
-            if undo_actions:
-                self.undo_service.push_batch(undo_actions)
-                self._update_undo_button()
-                self.logger.info(f"Added {len(undo_actions)} actions to undo stack")
-
-            # Log errors
-            for item in items:
-                if item.get('status') == 'error':
-                    self.logger.error(f"Failed to move {item.get('src', '')}: {item.get('error', 'Unknown error')}")
-
-        self.file_operations.move_many(move_request, on_move_done)
+        self.file_operations.move_many(move_request, self._on_move_done)
 
     def on_add_section(self, tile):
         """Handle adding a new section to a tile"""
@@ -506,6 +496,139 @@ class MainWindow(tk.Frame):
         # Update tooltip if it exists
         if hasattr(self.undo_button, 'tooltip_text'):
             self.undo_button.tooltip_text = tooltip_text
+
+    def _handle_invalid_section_drop(self, section_id, paths, tile):
+        """
+        Handle dropping files onto an invalid section with recovery dialog
+
+        Args:
+            section_id: The section ID that is invalid
+            paths: List of paths that were dropped
+            tile: The SectionTile instance
+        """
+        section_data = self.sections[section_id]
+        label = section_data.get('label', f'Section {section_id}')
+        current_path = section_data.get('path', '')
+
+        # Show recovery dialog
+        if self.pass_through_controller:
+            with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                try:
+                    self.parent.attributes('-topmost', False)
+                except Exception:
+                    pass
+                try:
+                    choice = prompt_invalid_target(label, current_path, parent=self.parent)
+                finally:
+                    try:
+                        self.parent.attributes('-topmost', True)
+                        self.parent.lift()
+                        self.parent.focus_force()
+                    except Exception:
+                        pass
+        else:
+            try:
+                self.parent.attributes('-topmost', False)
+            except Exception:
+                pass
+            try:
+                choice = prompt_invalid_target(label, current_path, parent=self.parent)
+            finally:
+                try:
+                    self.parent.attributes('-topmost', True)
+                    self.parent.lift()
+                    self.parent.focus_force()
+                except Exception:
+                    pass
+
+        if choice == 'reselect':
+            # Let user pick a new folder
+            if self.pass_through_controller:
+                with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                    try:
+                        self.parent.attributes('-topmost', False)
+                    except Exception:
+                        pass
+                    try:
+                        new_path = prompt_select_folder(parent=self.parent)
+                    finally:
+                        try:
+                            self.parent.attributes('-topmost', True)
+                            self.parent.lift()
+                            self.parent.focus_force()
+                        except Exception:
+                            pass
+            else:
+                try:
+                    self.parent.attributes('-topmost', False)
+                except Exception:
+                    pass
+                try:
+                    new_path = prompt_select_folder(parent=self.parent)
+                finally:
+                    try:
+                        self.parent.attributes('-topmost', True)
+                        self.parent.lift()
+                        self.parent.focus_force()
+                    except Exception:
+                        pass
+
+            if new_path:
+                # Update the section with new path
+                tile.update_path(new_path)
+                self.logger.info(f"Section {section_id} path updated to: {new_path}")
+
+                # Now proceed with the original drop to the new path
+                updated_section_data = self.sections[section_id]
+                target_dir = updated_section_data.get('path')
+
+                if target_dir and tile.is_valid():
+                    move_request = {
+                        'sources': paths,
+                        'target_dir': target_dir,
+                        'options': {}
+                    }
+
+                    self.file_operations.move_many(move_request, self._on_move_done)
+                    self.logger.info(f"Proceeding with move after path reselect: {len(paths)} items to {target_dir}")
+                else:
+                    self.logger.warning(f"Section {section_id} still invalid after reselect")
+
+        elif choice == 'remove':
+            # Clear the section
+            tile.clear_section()
+            self.logger.info(f"Section {section_id} cleared by user")
+
+        # If choice is None (cancel), do nothing
+
+    def _on_move_done(self, batch_result, undo_actions):
+        """
+        Handle completion of move operation - reusable handler
+
+        Args:
+            batch_result: Result from file operations
+            undo_actions: List of undo actions to add to stack
+        """
+        items = batch_result.get('items', [])
+
+        # Count results
+        ok_count = sum(1 for item in items if item.get('status') == 'ok')
+        skip_count = sum(1 for item in items if item.get('status') == 'skipped')
+        error_count = sum(1 for item in items if item.get('status') == 'error')
+
+        # Log summary
+        self.logger.info(f"Move completed: {ok_count} moved, {skip_count} skipped, {error_count} errors")
+
+        # Push undo actions if there were successful operations
+        if undo_actions:
+            self.undo_service.push_batch(undo_actions)
+            self._update_undo_button()
+            self.logger.info(f"Added {len(undo_actions)} actions to undo stack")
+
+        # Log errors
+        for item in items:
+            if item.get('status') == 'error':
+                self.logger.error(f"Failed to move {item.get('src', '')}: {item.get('error', 'Unknown error')}")
 
     def cleanup(self):
         """Clean up resources on shutdown"""

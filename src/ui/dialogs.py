@@ -249,3 +249,97 @@ def prompt_confirm_recycle(count: int, parent=None) -> bool:
     except Exception as e:
         logger.error(f"Error in recycle confirmation dialog: {e}")
         return False
+
+
+def prompt_invalid_target(label: str, path: str, parent=None):
+    """
+    Prompt user for action when dropping onto an invalid section
+
+    Args:
+        label (str): Section label
+        path (str): Invalid path
+        parent: Parent window for dialog
+
+    Returns:
+        str|None: 'reselect' to pick new folder, 'remove' to clear section, None to cancel
+    """
+    logger.debug(f"Prompting for invalid target action: {label} ({path})")
+
+    try:
+        # Create custom dialog
+        dialog = tk.Toplevel(parent)
+        dialog.title("Invalid Location")
+        dialog.resizable(False, False)
+        dialog.grab_set()  # Make modal
+
+        # Center dialog over parent
+        if parent:
+            parent.update_idletasks()
+            x = parent.winfo_x() + (parent.winfo_width() // 2) - 200
+            y = parent.winfo_y() + (parent.winfo_height() // 2) - 100
+            dialog.geometry(f"400x200+{x}+{y}")
+        else:
+            dialog.geometry("400x200+400+300")
+
+        # Dialog content
+        frame = tk.Frame(dialog, padx=20, pady=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        # Icon and message
+        icon_label = tk.Label(frame, text="⚠️", font=('Arial', 24))
+        icon_label.pack(pady=(0, 10))
+
+        message = tk.Label(frame,
+                          text=f"'{label}' is missing or inaccessible.\n\nWhat would you like to do?",
+                          font=('Arial', 10),
+                          justify=tk.CENTER,
+                          wraplength=350)
+        message.pack(pady=(0, 20))
+
+        # Result variable
+        result = [None]
+
+        # Button frame
+        button_frame = tk.Frame(frame)
+        button_frame.pack()
+
+        def on_reselect():
+            result[0] = 'reselect'
+            dialog.destroy()
+
+        def on_remove():
+            result[0] = 'remove'
+            dialog.destroy()
+
+        def on_cancel():
+            result[0] = None
+            dialog.destroy()
+
+        # Buttons
+        reselect_btn = tk.Button(button_frame, text="Reselect Folder…", command=on_reselect, width=15)
+        reselect_btn.pack(side=tk.LEFT, padx=5)
+
+        remove_btn = tk.Button(button_frame, text="Remove Location", command=on_remove, width=15)
+        remove_btn.pack(side=tk.LEFT, padx=5)
+
+        cancel_btn = tk.Button(button_frame, text="Cancel", command=on_cancel, width=10)
+        cancel_btn.pack(side=tk.LEFT, padx=5)
+
+        # Keyboard shortcuts
+        dialog.bind('<Escape>', lambda e: on_cancel())
+
+        # Set focus and wait
+        reselect_btn.focus_set()
+        dialog.wait_window()
+
+        choice = result[0]
+        if choice:
+            logger.info(f"Invalid target choice for {label}: {choice}")
+        else:
+            logger.info(f"Invalid target cancelled for {label}")
+
+        return choice
+
+    except Exception as e:
+        logger.error(f"Error in invalid target dialog: {e}")
+        return None

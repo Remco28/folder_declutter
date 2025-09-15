@@ -6,6 +6,7 @@ Handles empty/defined states, tooltips, and context menus
 import tkinter as tk
 from tkinter import messagebox, Menu
 import logging
+import os
 import os.path
 
 
@@ -28,6 +29,7 @@ class SectionTile(tk.Frame):
         self._label = None
         self._path = None
         self._is_valid = True
+        self._invalid_reason = None
         
         # UI elements
         self.display_label = None
@@ -38,6 +40,27 @@ class SectionTile(tk.Frame):
         self._setup_context_menu()
         
         self.logger.debug(f"SectionTile {section_id} initialized")
+
+    def _validate_path(self, path):
+        """
+        Validate a path and return validity status and reason
+
+        Args:
+            path: Path to validate
+
+        Returns:
+            tuple: (is_valid, reason) where reason is None if valid
+        """
+        if not path:
+            return False, "No path configured"
+
+        if not os.path.exists(path):
+            return False, "Folder not found"
+
+        if not os.access(path, os.W_OK):
+            return False, "No write permission"
+
+        return True, None
     
     def _setup_ui(self):
         """Initialize UI in empty state"""
@@ -70,11 +93,15 @@ class SectionTile(tk.Frame):
         # Clear existing widgets
         for widget in self.winfo_children():
             widget.destroy()
-        
+
+        # Main container for label and subtitle
+        container = tk.Frame(self)
+        container.pack(expand=True, fill=tk.BOTH)
+
         # Section label
         border_color = 'red' if not self._is_valid else None
         self.display_label = tk.Label(
-            self,
+            container,
             text=self._label,
             font=('Arial', 10),
             wraplength=120,
@@ -85,7 +112,18 @@ class SectionTile(tk.Frame):
             highlightthickness=2 if border_color else 0
         )
         self.display_label.pack(expand=True, fill=tk.BOTH)
-        
+
+        # Add subtitle for invalid sections
+        if not self._is_valid:
+            subtitle = tk.Label(
+                container,
+                text="Missing or inaccessible",
+                font=('Arial', 8),
+                fg='gray',
+                justify='center'
+            )
+            subtitle.pack(side=tk.BOTTOM, pady=(0, 2))
+
         # Add tooltip and context menu
         self._bind_tooltip()
         self._bind_context_menu()
@@ -136,9 +174,13 @@ class SectionTile(tk.Frame):
         self.tooltip.wm_overrideredirect(True)
         self.tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
         
+        tooltip_text = self._path
+        if not self._is_valid and self._invalid_reason:
+            tooltip_text += f"\n{self._invalid_reason}"
+
         label = tk.Label(
             self.tooltip,
-            text=self._path,
+            text=tooltip_text,
             background="lightyellow",
             relief=tk.SOLID,
             borderwidth=1,
@@ -296,7 +338,7 @@ class SectionTile(tk.Frame):
         """Set section to defined state with label and path"""
         self._label = label
         self._path = path
-        self._is_valid = os.path.exists(path) if path else False
+        self._is_valid, self._invalid_reason = self._validate_path(path)
         self._show_defined_state()
         
         # Notify parent of change
@@ -339,7 +381,7 @@ class SectionTile(tk.Frame):
         if self._label:  # Only if section is defined
             old_path = self._path
             self._path = new_path
-            self._is_valid = os.path.exists(new_path) if new_path else False
+            self._is_valid, self._invalid_reason = self._validate_path(new_path)
             self._show_defined_state()
             
             # Notify parent of change
@@ -375,3 +417,36 @@ class SectionTile(tk.Frame):
                 self.config(bg=self._original_bg)
                 delattr(self, '_original_bg')
             self.logger.debug(f"Section {self.section_id} drag highlight disabled")
+
+    def is_valid(self):
+        """
+        Check if the section is valid (has a path that exists and is writable)
+
+        Returns:
+            bool: True if section is valid, False otherwise
+        """
+        return self._is_valid
+
+    def get_invalid_reason(self):
+        """
+        Get the reason why the section is invalid
+
+        Returns:
+            str|None: Reason string if invalid, None if valid
+        """
+        return self._invalid_reason
+
+    def revalidate(self):
+        """
+        Re-validate the current path and update display
+
+        Returns:
+            bool: True if section is valid after revalidation
+        """
+        if self._path:
+            old_valid = self._is_valid
+            self._is_valid, self._invalid_reason = self._validate_path(self._path)
+            if old_valid != self._is_valid:
+                self._show_defined_state()  # Refresh display
+            return self._is_valid
+        return False

@@ -83,3 +83,9 @@
 [2025-09-15 14:45] [CLAUDE]: IMPL DONE: Phase 10B overlay transparency and dynamic sizing complete - implemented Windows chroma-key transparency with #FF00FF, dynamic sizing formula (min_dim / 4.2, clamped 192-512px), show_centered_over() method for centering over main window, updated window minimize handling to compute geometry and center overlay, preserved drag-to-move and click-to-restore functionality, fallback behavior for non-Windows platforms
 [2025-09-15 11:45] [Architect]: REVIEW PASS: Phase 10B — Overlay transparency, centering, dynamic sizing. Docs updated.
 [2025-09-15 11:52] [Architect]: SPEC READY: Phase 10C — Windows layered overlay (per-pixel alpha, perfect edges).
+[2025-09-15 12:02] [Architect]: SPEC UPDATED: Phase 10C — add quick-click restore and drag reliability.
+
+[2025-09-15 15:00] [CLAUDE]: IMPL IN_PROGRESS: Phase 10C Windows layered overlay with per-pixel alpha - implementing LayeredOverlay class with WS_EX_LAYERED window, UpdateLayeredWindow ARGB blit, mouse handling for drag/click, MiniOverlay integration with fallback
+
+[2025-09-15 15:30] [CLAUDE]: IMPL DONE: Phase 10C Windows layered overlay with per-pixel alpha complete - created LayeredOverlay class with WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TOPMOST window, UpdateLayeredWindow with BGRA bitmap and AC_SRC_ALPHA blending for perfect transparency, mouse handling with WM_LBUTTONDOWN/MOUSEMOVE/LBUTTONUP for drag-to-move and quick-click restore (≤200ms, ≤1px), integrated into MiniOverlay with automatic Windows detection and fallback to chroma-key transparency, proper GDI resource management and cleanup
+[2025-09-15 12:17] [Architect]: REVIEW PASS (with minor fix): Phase 10C — Layered overlay, quick-click; scheduled restore on Tk thread. Archived spec.

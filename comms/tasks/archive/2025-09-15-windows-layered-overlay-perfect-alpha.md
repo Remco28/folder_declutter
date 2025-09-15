@@ -24,7 +24,7 @@ Files and Functions
 - Update: `src/ui/mini_overlay.py`
   - Add a Windows‑only code path that prefers `LayeredOverlay` when available; fallback to current Tk Toplevel chroma‑key variant if initialization fails.
   - Reuse existing dynamic sizing and centering logic to compute the final RGBA image to pass to `LayeredOverlay.create`.
-  - Keep the same drag threshold and click‑to‑restore behavior; for the layered window path, route events via the window proc in `LayeredOverlay` and call back into the same `on_restore` callback.
+  - Keep the same drag threshold and click‑to‑restore behavior; for the layered window path, route events via the window proc in `LayeredOverlay` and call back into the same `on_restore` callback (scheduled on Tk thread via `after(0, ...)`).
   - API remains: `show_centered_over(rect)`, `show(x,y)`, `hide()`.
 
 - No change: `src/ui/window.py`
@@ -42,12 +42,12 @@ Technical Requirements
    - Call `UpdateLayeredWindow(hwnd, hdcSrc, (x,y), (w,h), hdcMem, (0,0), 0, BLENDFUNCTION(AC_SRC_OVER, 0, 255, AC_SRC_ALPHA), ULW_ALPHA)`.
    - Release all GDI objects reliably (SelectObject original, DeleteObject HBITMAP, DeleteDC, ReleaseDC).
 
-3) Input handling
-   - Implement a window proc to handle mouse messages:
-     - WM_LBUTTONDOWN: record position, set capture, start potential drag.
-     - WM_MOUSEMOVE: if capture and movement > threshold, move window by delta.
-     - WM_LBUTTONUP: release capture; if not dragged, invoke `on_restore` callback on the Tk thread via `after(0, ...)`.
-   - Support hit‑testing over the full client area; optional: ignore fully transparent pixels for hit‑testing in a later phase.
+3) Input handling (reliable drag + quick‑click restore)
+   - WM_LBUTTONDOWN: record press timestamp and position; set mouse capture; state = potential_drag.
+   - WM_MOUSEMOVE: if capture and movement > 1 px, treat as drag and move window by delta; update last position.
+   - WM_LBUTTONUP: release capture. If total movement ≤ 1 px and press duration ≤ 200 ms, treat as quick‑click and invoke `on_restore` on the Tk thread via `after(0, ...)`. Otherwise, do nothing (long press without movement does not restore).
+   - Do not set `WS_EX_TRANSPARENT`.
+   - Optional later: ignore fully transparent pixels for hit‑testing.
 
 4) Centering & lifecycle
    - `MiniOverlay.show_centered_over(rect)` computes top‑left `(ox, oy)` from icon size and creates/moves the layered window to that point; shows it.
@@ -55,21 +55,21 @@ Technical Requirements
    - Do not change main window geometry based on overlay drags.
 
 5) Fallbacks
-   - If any step fails (missing Pillow/pywin32 or API error), log and fall back to the current chroma‑key Tk overlay path.
+   - If any step fails (missing Pillow/pywin32 or API error), log and fall back to the chroma‑key Tk overlay path.
 
 6) Packaging
-   - Ensure `pywin32` and `Pillow` are included for the bundled build. If Pillow is missing at runtime, the feature should fall back cleanly.
+   - Ensure `pywin32` and `Pillow` are bundled. If Pillow is missing at runtime, fall back cleanly.
 
 Acceptance Criteria
 - Overlay edges render smoothly with full alpha (no magenta/white halos) on any desktop background.
 - Centering on minimize and dynamic sizing match Phase 10B behavior.
-- Dragging moves only the overlay; a single click restores the main window.
+- Dragging moves only the overlay; a quick click (≤ 200 ms, ≤ 1 px) restores the main window. A long press without movement does nothing.
 - Works correctly on Windows 10/11 at 100%, 150%, 200% scaling.
 - Fallback to chroma‑key overlay if layered path is unavailable, with clear WARN logs.
 
 QA Notes
 - Visual inspection against dark/light/photographic wallpapers.
-- Repeated minimize/restore cycles; verify no resource leaks (watch GDI object count in Task Manager → Columns → GDI Objects).
+- Repeated minimize/restore cycles; verify no resource leaks (watch GDI object count in Task Manager).
 - DPI changes: test moving between monitors with different scale factors; minimize/restore after move.
 
 Out of Scope

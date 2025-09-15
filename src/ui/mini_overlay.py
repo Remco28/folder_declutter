@@ -12,6 +12,13 @@ from typing import Callable, Optional
 # Transparency key for Windows chroma-key transparency
 TRANSPARENT_KEY = '#FF00FF'
 
+# Try to import LayeredOverlay for Windows per-pixel alpha
+try:
+    from ..services.win_overlay import LayeredOverlay
+    LAYERED_OVERLAY_AVAILABLE = True
+except ImportError:
+    LAYERED_OVERLAY_AVAILABLE = False
+
 
 class MiniOverlay:
     """Small floating always-on-top overlay for minimized app"""
@@ -31,12 +38,33 @@ class MiniOverlay:
 
         # State
         self.overlay = None
+        self.layered_overlay = None
+        self.use_layered = False
         self.last_position = None
         self.drag_data = {'x': 0, 'y': 0, 'dragging': False}
 
         # Try to load and scale icon
         self.icon_image = self._load_and_scale_icon()
         self.icon_size = (0, 0)  # Will be set by _load_and_scale_icon
+
+        # Try to initialize layered overlay for Windows
+        if platform.system() == 'Windows' and LAYERED_OVERLAY_AVAILABLE:
+            try:
+                # Ensure Tk UI actions happen on the Tk thread via after()
+                def _restore_cb():
+                    try:
+                        self.parent_root.after(0, self.on_restore)
+                    except Exception as e:
+                        self.logger.error(f"Error scheduling restore on Tk thread: {e}")
+
+                self.layered_overlay = LayeredOverlay(_restore_cb, logger=self.logger)
+                self.use_layered = True
+                self.logger.info("LayeredOverlay initialized for Windows per-pixel alpha")
+            except Exception as e:
+                self.logger.warning(f"LayeredOverlay not available, using fallback: {e}")
+                self.use_layered = False
+        else:
+            self.logger.debug("LayeredOverlay not available on this platform")
 
         self.logger.debug("MiniOverlay initialized")
 
@@ -146,6 +174,62 @@ class MiniOverlay:
             self.icon_size = (96, 96)  # Safe fallback size
             return None
 
+    def _load_icon_as_pil(self):
+        """Load icon as PIL Image for layered overlay"""
+        try:
+            # Look for icon file
+            icon_path = None
+            for possible_path in [
+                "resources/icon.png",
+                "folder_declutter.png",
+                "icon.png"
+            ]:
+                if os.path.exists(possible_path):
+                    icon_path = possible_path
+                    break
+
+            if not icon_path:
+                self.logger.warning("No icon file found for PIL loading")
+                return None
+
+            # Load with PIL
+            from PIL import Image
+            pil_image = Image.open(icon_path)
+
+            # Apply same sizing logic as _load_and_scale_icon
+            screen_w = self.parent_root.winfo_screenwidth()
+            screen_h = self.parent_root.winfo_screenheight()
+            min_dimension = min(screen_w, screen_h)
+            target_size = round(min_dimension / 4.2)
+            target_size = max(192, min(512, target_size))
+
+            original_w, original_h = pil_image.size
+
+            # Don't upscale beyond natural size
+            final_w = min(target_size, original_w)
+            final_h = min(target_size, original_h)
+
+            # Maintain aspect ratio
+            aspect_ratio = original_w / original_h
+            if final_w / aspect_ratio < final_h:
+                final_h = round(final_w / aspect_ratio)
+            else:
+                final_w = round(final_h * aspect_ratio)
+
+            # Resize with high quality
+            pil_image = pil_image.resize((final_w, final_h), Image.Resampling.LANCZOS)
+
+            # Ensure RGBA mode
+            if pil_image.mode != 'RGBA':
+                pil_image = pil_image.convert('RGBA')
+
+            self.logger.debug(f"PIL image loaded: {final_w}x{final_h}")
+            return pil_image
+
+        except Exception as e:
+            self.logger.error(f"Error loading PIL image: {e}")
+            return None
+
     def _get_default_position(self):
         """Get default position (bottom-right with margin)"""
         try:
@@ -239,7 +323,7 @@ class MiniOverlay:
         Args:
             rect: (x, y, width, height) of the main window
         """
-        if self.overlay:
+        if self.overlay or (self.layered_overlay and self.layered_overlay.is_visible):
             self.logger.debug("Overlay already shown")
             return
 
@@ -250,6 +334,21 @@ class MiniOverlay:
         ox = x + (w - ow) // 2
         oy = y + (h - oh) // 2
 
+        # Try to use Windows layered overlay first
+        if self.use_layered and self.layered_overlay:
+            try:
+                # Load icon as PIL Image for layered overlay
+                pil_image = self._load_icon_as_pil()
+                if pil_image:
+                    self.layered_overlay.create(pil_image, ox, oy)
+                    self.logger.info(f"LayeredOverlay shown centered at ({ox}, {oy}) over rect {rect}")
+                    return
+                else:
+                    self.logger.warning("Failed to load PIL image for layered overlay, falling back")
+            except Exception as e:
+                self.logger.warning(f"LayeredOverlay failed, falling back to Tk overlay: {e}")
+
+        # Fallback to Tk overlay with chroma-key transparency
         try:
             # Create overlay window with transparency support
             self.overlay = tk.Toplevel()
@@ -263,7 +362,7 @@ class MiniOverlay:
             if platform.system() == 'Windows':
                 try:
                     self.overlay.wm_attributes('-transparentcolor', TRANSPARENT_KEY)
-                    self.logger.debug("Windows transparency enabled")
+                    self.logger.debug("Windows chroma-key transparency enabled")
                 except Exception as e:
                     self.logger.warning(f"Windows transparency not available: {e}")
 
@@ -302,7 +401,7 @@ class MiniOverlay:
             self.overlay.geometry(f"+{ox}+{oy}")
             self.overlay.deiconify()
 
-            self.logger.info(f"Mini overlay shown centered at ({ox}, {oy}) over rect {rect}")
+            self.logger.info(f"Tk overlay (fallback) shown centered at ({ox}, {oy}) over rect {rect}")
 
         except Exception as e:
             self.logger.error(f"Error showing centered overlay: {e}")
@@ -315,6 +414,15 @@ class MiniOverlay:
 
     def hide(self) -> None:
         """Hide/destroy the overlay"""
+        # Handle layered overlay
+        if self.layered_overlay and self.layered_overlay.is_visible:
+            try:
+                self.layered_overlay.hide()
+                self.logger.info("LayeredOverlay hidden")
+            except Exception as e:
+                self.logger.error(f"Error hiding layered overlay: {e}")
+
+        # Handle Tk overlay
         if self.overlay:
             try:
                 # Store current position for next time
@@ -324,9 +432,9 @@ class MiniOverlay:
                 self.logger.debug(f"Stored overlay position: ({x}, {y})")
 
                 self.overlay.destroy()
-                self.logger.info("Mini overlay hidden")
+                self.logger.info("Tk overlay hidden")
             except Exception as e:
-                self.logger.error(f"Error hiding overlay: {e}")
+                self.logger.error(f"Error hiding Tk overlay: {e}")
             finally:
                 self.overlay = None
 

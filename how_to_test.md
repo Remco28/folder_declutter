@@ -51,8 +51,13 @@ How to run on Windows
   Phase 6 — File operations + Undo
   - Drop files onto a defined tile pointing to a writable folder → files move; UI remains responsive; summary logged.
   - Desktop refresh: when moving items from the Desktop, icons disappear immediately after the move (Windows shell-backed moves).
-  - Conflict: drop a file with same name → Replace/Skip/Cancel dialog appears; choices apply per item; Cancel aborts remaining.
+  - Conflict: drop a file with same name → Replace/Skip/Cancel dialog appears above the main window; button labels are visible; choices apply per item; Cancel aborts remaining.
   - Undo: after a move completes, Undo enables; pressing Undo restores moved items (and prior contents if replaced). Repeated drops produce a LIFO undo stack.
+
+  Phase 10A — Minimize to overlay
+  - Minimize the app → a small floating overlay appears (borderless, topmost) at bottom-right.
+  - Click the overlay → main window restores (deiconify + raise + focus) and the overlay hides.
+  - Drag the overlay to a new position → minimize again → overlay reappears at the last position for this session.
 
   WSL/WSLg note
   - Always-on-top and Windows pass-through rely on native Win32 APIs and won’t behave correctly under WSL/WSLg. Test these features using native Windows Python.

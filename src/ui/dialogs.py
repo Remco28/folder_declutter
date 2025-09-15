@@ -85,25 +85,39 @@ def prompt_overwrite(target_path: str, parent=None):
     """
     logger.debug(f"Prompting for overwrite decision: {target_path}")
 
+    parent_was_topmost = False
     try:
+        # Temporarily clear parent topmost if it's set
+        if parent:
+            try:
+                parent_was_topmost = parent.attributes('-topmost')
+                if parent_was_topmost:
+                    parent.attributes('-topmost', False)
+            except Exception:
+                pass
+
         # Create custom dialog
         dialog = tk.Toplevel(parent)
         dialog.title("File Exists")
         dialog.resizable(False, False)
-        dialog.grab_set()  # Make modal
 
-        # Center dialog over parent
+        # Make dialog transient (proper child of parent)
         if parent:
-            parent.update_idletasks()
-            x = parent.winfo_x() + (parent.winfo_width() // 2) - 200
-            y = parent.winfo_y() + (parent.winfo_height() // 2) - 100
-            dialog.geometry(f"400x200+{x}+{y}")
-        else:
-            dialog.geometry("400x200+400+300")
+            dialog.transient(parent)
 
-        # Dialog content
+        # Dialog content setup before showing
         frame = tk.Frame(dialog, padx=20, pady=20)
         frame.pack(fill=tk.BOTH, expand=True)
+
+        # Set explicit font for better rendering (fallback to system default)
+        try:
+            button_font = ('Segoe UI', 9)
+            # Test if font is available
+            test_label = tk.Label(dialog, font=button_font)
+            test_label.destroy()
+        except Exception:
+            # Fallback to system default
+            button_font = None
 
         # Icon and message
         icon_label = tk.Label(frame, text="⚠️", font=('Arial', 24))
@@ -135,22 +149,59 @@ def prompt_overwrite(target_path: str, parent=None):
             result[0] = None
             dialog.destroy()
 
-        # Buttons
-        replace_btn = tk.Button(button_frame, text="Replace", command=on_replace, width=10)
+        # Create buttons with explicit text and font
+        replace_btn = tk.Button(button_frame,
+                               text="Replace",
+                               command=on_replace,
+                               width=10,
+                               font=button_font,
+                               takefocus=True)
         replace_btn.pack(side=tk.LEFT, padx=5)
 
-        skip_btn = tk.Button(button_frame, text="Skip", command=on_skip, width=10)
+        skip_btn = tk.Button(button_frame,
+                            text="Skip",
+                            command=on_skip,
+                            width=10,
+                            font=button_font,
+                            takefocus=True)
         skip_btn.pack(side=tk.LEFT, padx=5)
 
-        cancel_btn = tk.Button(button_frame, text="Cancel", command=on_cancel, width=10)
+        cancel_btn = tk.Button(button_frame,
+                              text="Cancel",
+                              command=on_cancel,
+                              width=10,
+                              font=button_font,
+                              takefocus=True)
         cancel_btn.pack(side=tk.LEFT, padx=5)
 
         # Keyboard shortcuts
         dialog.bind('<Return>', lambda e: on_replace())
         dialog.bind('<Escape>', lambda e: on_cancel())
 
-        # Set focus and wait
+        # Position and show dialog
+        if parent:
+            parent.update_idletasks()
+            x = parent.winfo_x() + (parent.winfo_width() // 2) - 200
+            y = parent.winfo_y() + (parent.winfo_height() // 2) - 100
+            dialog.geometry(f"400x200+{x}+{y}")
+        else:
+            dialog.geometry("400x200+400+300")
+
+        # Wait for geometry to settle before showing
+        dialog.update_idletasks()
+
+        # Ensure proper z-order and visibility
+        dialog.wait_visibility()
+        dialog.lift()
+        dialog.focus_force()
+
+        # Set focus to Replace button (default action)
         replace_btn.focus_set()
+
+        # Set modal grab after visibility
+        dialog.grab_set()
+
+        # Wait for user interaction
         dialog.wait_window()
 
         choice = result[0]
@@ -164,6 +215,16 @@ def prompt_overwrite(target_path: str, parent=None):
     except Exception as e:
         logger.error(f"Error in overwrite dialog: {e}")
         return None
+
+    finally:
+        # Restore parent topmost state
+        if parent and parent_was_topmost:
+            try:
+                parent.attributes('-topmost', True)
+                parent.lift()
+                parent.focus_force()
+            except Exception:
+                pass
 
 
 def prompt_confirm_recycle(count: int, parent=None) -> bool:

@@ -64,3 +64,15 @@
 [2025-09-15 12:05] [Architect]: REVIEW PASS: Phase 8.1 — Context menu robustness meets spec; archived task.
 [2025-09-15 12:06] [Architect]: REVIEW PASS (with minor fix): Phase 8.2 — Section reset meets spec; archived task. Fix: treat empty label as default to folder name, only cancel on None.
 [2025-09-15 12:20] [Architect]: DOCS UPDATED: Noted Windows IFileOperation-based moves (instant desktop refresh), updated data flow/integration points, test checklist, conflict dialog options; tracked overwrite dialog z-order/text issue for follow-up.
+[2025-09-15 12:30] [Architect]: SPEC READY: Phase 8.3 — Overwrite dialog z-order and text rendering fix.
+[2025-09-15 13:10] [Developer]: IMPL DONE: Phase 8.3 — Overwrite dialog fix implemented: transient parenting, wait_visibility, lift/focus, topmost restore; explicit button labels/fonts; improved modality.
+[2025-09-15 13:20] [Architect]: REVIEW PASS: Phase 8.3 — Dialog appears above main app; labels visible; shortcuts work; archived task.
+[2025-09-15 13:25] [Developer]: IMPL DONE: Phase 10A — Minimize-to-overlay implemented: borderless topmost overlay with scaled icon, drag-to-move, click-to-restore; session position memory.
+[2025-09-15 13:30] [Architect]: REVIEW PASS: Phase 10A — Minimize-to-overlay meets spec; archived task. Nit: Window stores overlay_pos unused; rely on overlay’s own last_position.
+[2025-09-15 13:35] [Architect]: CLEANUP: Removed unused `_overlay`/`_overlay_pos` from MainWindow; overlay positioning handled by MiniOverlay.
+
+[2025-09-15 12:35] [CLAUDE]: IMPL IN_PROGRESS: Phase 8.3 overwrite dialog z-order and text rendering fix - implementing transient parenting, topmost handling, explicit fonts, and visibility sequencing
+[2025-09-15 12:40] [CLAUDE]: IMPL DONE: Phase 8.3 overwrite dialog z-order and text rendering fix complete - added transient parenting, explicit Segoe UI font with fallback, proper topmost state handling, wait_visibility sequencing for z-order, enhanced focus management and keyboard accessibility
+
+[2025-09-15 12:45] [CLAUDE]: IMPL IN_PROGRESS: Phase 10A minimize to overlay - implementing MiniOverlay component with screen resolution-based scaling, drag-to-move, click-to-restore functionality
+[2025-09-15 13:00] [CLAUDE]: IMPL DONE: Phase 10A minimize to overlay complete - created MiniOverlay component with screen resolution-based icon scaling (32-96px bounds), Pillow/tkinter fallback, drag-to-move with threshold, click-to-restore, session position memory, integrated with MainWindow minimize/restore handling, updated architecture documentation

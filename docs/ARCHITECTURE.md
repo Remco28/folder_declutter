@@ -15,7 +15,7 @@ This document outlines the architecture of the Desktop Sorter application: a lig
 - Windows Integration (`src/services/win_integration.py`) – Manages window handle (HWND), always-on-top, and pass-through behavior by toggling `WS_EX_TRANSPARENT` via `pywin32` (`SetWindowLong`/`GetWindowLong`). Note: we avoid `WS_EX_LAYERED` unless paired with `SetLayeredWindowAttributes` due to Tk rendering issues; current design uses only `WS_EX_TRANSPARENT` for click-through.
 - Recycle Bin Service (`src/services/recycle_bin.py`) – Sends files/folders to the Windows Recycle Bin using `IFileOperation` (preferred) or `SHFileOperation` (fallback) with `FOF_ALLOWUNDO` (via `pywin32`). Runs operations in background threads with per-item result reporting. Includes optional confirmation dialog for large batches.
 - Error Handler (`src/file_handler/error_handler.py`) – Maps exceptions (permissions, missing paths, long-path issues) to user-facing dialogs and safe fallbacks.
- - Mini Overlay (`src/ui/mini_overlay.py`, planned) – Small floating always-on-top overlay shown when the app is minimized; displays a resizable logo (scaled by screen resolution), supports drag-to-move and click-to-restore.
+ - Mini Overlay (`src/ui/mini_overlay.py`) – Small floating always-on-top overlay shown when the app is minimized; displays a resizable logo (scaled by screen resolution), supports drag-to-move and click-to-restore.
 
 ### Supporting Services
 - Logging – Standard Python logging; file handler writes to `%APPDATA%/DesktopSorter/logs/app.log` with rotation.
@@ -123,11 +123,7 @@ Click overlay → hide overlay → deiconify + raise + focus main window
 - Task specs: `comms/tasks/YYYY-MM-DD-*.md`
 
 ## Implementation Status
-- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo), Phase 7 (Recycle Bin support with Windows shell integration), Phase 7.1 (Recycle Bin flags compatibility + robust fallback), Phase 8 (Invalid paths UX), Phase 8.1 (Context menu robustness), Phase 8.2 (Section reset). Windows moves now use IFileOperation for shell-integrated refresh.
-
-## Known Issues
-- Overwrite dialog z-order: On some systems, the overwrite dialog may appear behind the main window. Options text may render blank in rare cases. Track and fix by ensuring topmost/transient parenting and font rendering; consider switching to a custom Toplevel dialog.
-- Planned: Phase 10A (Minimize to overlay).
+- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo), Phase 7 (Recycle Bin support with Windows shell integration), Phase 7.1 (Recycle Bin flags compatibility + robust fallback), Phase 8 (Invalid paths UX), Phase 8.1 (Context menu robustness), Phase 8.2 (Section reset), Phase 8.3 (Overwrite dialog z-order and text rendering fix), Phase 10A (Minimize to overlay). Windows moves now use IFileOperation for shell-integrated refresh.
 
 ---
 This overview captures how components connect, where Windows integration occurs, and the expected data flows. Update it when adding new integration points or changing flows materially.

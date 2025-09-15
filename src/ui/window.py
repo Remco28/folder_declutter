@@ -7,6 +7,7 @@ import tkinter as tk
 import logging
 import os
 from .section import SectionTile
+from .mini_overlay import MiniOverlay
 from ..file_handler.file_operations import FileOperations
 from ..services.undo import UndoService
 from ..services.recycle_bin import RecycleBinService
@@ -34,10 +35,18 @@ class MainWindow(tk.Frame):
         self.file_operations = FileOperations(self.parent, logger=self.logger)
         self.undo_service = UndoService(self.parent, logger=self.logger)
         self.recycle_bin_service = RecycleBinService(self.parent, logger=self.logger)
-        
+
+        # Initialize mini overlay for minimize-to-overlay functionality
+        try:
+            self._mini_overlay = MiniOverlay(self.parent, self._on_overlay_restore, logger=self.logger)
+        except Exception as e:
+            self.logger.warning(f"Failed to initialize mini overlay: {e}")
+            self._mini_overlay = None
+
         self._setup_ui()
         self._setup_keyboard_bindings()
         self._setup_dragdrop()
+        self._setup_minimize_handling()
         self._load_sections_from_config()
         self._update_undo_button()
 
@@ -251,6 +260,55 @@ class MainWindow(tk.Frame):
                     # End drag sequence if drag was in progress
                     self.dragdrop_bridge._end_drag_sequence()
                     self.logger.debug("Drag sequence ended due to toplevel window leave")
+
+    def _setup_minimize_handling(self):
+        """Setup minimize-to-overlay functionality"""
+        if not self._mini_overlay:
+            self.logger.info("Mini overlay not available - minimize handling disabled")
+            return
+
+        try:
+            # Bind to minimize/unmap events
+            self.parent.bind('<Unmap>', self._on_window_minimize)
+            self.logger.info("Minimize-to-overlay handling setup complete")
+        except Exception as e:
+            self.logger.error(f"Error setting up minimize handling: {e}")
+
+    def _on_window_minimize(self, event):
+        """Handle window minimize event - show overlay"""
+        if not self._mini_overlay:
+            return
+
+        try:
+            # Check if this is actually a minimize (iconify) event
+            if self.parent.state() == 'iconic':
+                self.logger.info("Window minimized - showing mini overlay")
+
+                # Hide the main window completely
+                self.parent.withdraw()
+
+                # Show the overlay (MiniOverlay manages its own last position)
+                self._mini_overlay.show()
+
+        except Exception as e:
+            self.logger.error(f"Error handling window minimize: {e}")
+
+    def _on_overlay_restore(self):
+        """Handle restore request from overlay - restore main window"""
+        try:
+            self.logger.info("Overlay restore requested - restoring main window")
+
+            # Hide the overlay first
+            if self._mini_overlay:
+                self._mini_overlay.hide()
+
+            # Restore and focus the main window
+            self.parent.deiconify()
+            self.parent.lift()
+            self.parent.focus_force()
+
+        except Exception as e:
+            self.logger.error(f"Error restoring from overlay: {e}")
 
     def on_drop(self, section_id, paths):
         """
@@ -646,4 +704,6 @@ class MainWindow(tk.Frame):
             self.undo_service.shutdown()
         if hasattr(self, 'recycle_bin_service'):
             self.recycle_bin_service.shutdown()
+        if hasattr(self, '_mini_overlay') and self._mini_overlay:
+            self._mini_overlay.hide()
         self.logger.info("MainWindow cleanup completed")

@@ -9,6 +9,7 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Callable, Optional
 from ..file_handler.error_handler import log_error
+from . import shell_notify
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,12 @@ class RecycleBinService:
             error_count = len(results) - success_count
             self.logger.info(f"Recycle bin operation completed: {success_count} successful, {error_count} failed")
 
-            self._call_main_thread(lambda: on_done(results))
+            # Schedule shell notifications on main thread before calling on_done
+            def notify_and_callback():
+                self._notify_shell_after_delete(results)
+                on_done(results)
+
+            self._call_main_thread(notify_and_callback)
 
         self.executor.submit(work)
 
@@ -251,6 +257,26 @@ class RecycleBinService:
             ]
 
         return results
+
+    def _notify_shell_after_delete(self, results: List[Dict]) -> None:
+        """
+        Notify Windows Shell about deleted items and their parent directories
+
+        Args:
+            results: List of delete operation results
+        """
+        # Extract successfully deleted paths
+        deleted_paths = [
+            Path(r['path']).resolve()
+            for r in results
+            if r.get('status') == 'ok'
+        ]
+
+        if deleted_paths:
+            self.logger.info(f"Notifying shell about {len(deleted_paths)} deleted items and their parents")
+            shell_notify.notify_batch_delete_and_parents(deleted_paths)
+        else:
+            self.logger.info("No successful deletes found, skipping shell notifications")
 
     def _call_main_thread(self, callback: Callable):
         """

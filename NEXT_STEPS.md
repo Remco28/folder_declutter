@@ -10,6 +10,7 @@
 
 ## Bugs
 - [ ] Sometimes dragging into "Recycle Bin" doesn't refresh the page. Icon will persist after being removed. Refreshing will show it was moved correctly.
+- [ ] The tooltips need to appear over the main app.
 
 ## Features
 - [ ] Add ability to "go to location" by 1. double clicking section (if its defined) 2. right click > menu > go to location

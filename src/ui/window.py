@@ -8,6 +8,7 @@ import logging
 import os
 from .section import SectionTile
 from .mini_overlay import MiniOverlay
+from . import tooltip
 from ..file_handler.file_operations import FileOperations
 from ..services.undo import UndoService
 from ..services.recycle_bin import RecycleBinService
@@ -114,39 +115,16 @@ class MainWindow(tk.Frame):
             command=self.on_undo
         )
         self.undo_button.pack(side=tk.RIGHT, padx=(10, 0))
-        
-        # Add tooltip to Undo button
-        self._add_tooltip(self.undo_button, "Undo last action")
+
+        # Initialize tooltip text and bind tooltip to Undo button
+        self.undo_button.tooltip_text = "Undo last action"
+        tooltip.bind_tooltip(self.undo_button, lambda: getattr(self.undo_button, 'tooltip_text', 'Undo last action'))
     
     def _setup_keyboard_bindings(self):
         """Setup keyboard shortcuts"""
         self.parent.bind_all('<Control-z>', lambda e: self.on_undo())
         self.parent.focus_set()  # Ensure window can receive key events
     
-    def _add_tooltip(self, widget, text):
-        """Add simple tooltip to widget"""
-        def on_enter(event):
-            tooltip = tk.Toplevel()
-            tooltip.wm_overrideredirect(True)
-            tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
-            label = tk.Label(
-                tooltip, 
-                text=text, 
-                background="lightyellow", 
-                relief=tk.SOLID, 
-                borderwidth=1,
-                font=('Arial', 8)
-            )
-            label.pack()
-            widget.tooltip = tooltip
-        
-        def on_leave(event):
-            if hasattr(widget, 'tooltip'):
-                widget.tooltip.destroy()
-                del widget.tooltip
-        
-        widget.bind('<Enter>', on_enter)
-        widget.bind('<Leave>', on_leave)
 
     def _load_sections_from_config(self):
         """Load and restore sections from configuration"""

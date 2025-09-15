@@ -8,6 +8,7 @@ from tkinter import messagebox, Menu
 import logging
 import os
 import os.path
+from . import tooltip
 
 
 class SectionTile(tk.Frame):
@@ -33,7 +34,6 @@ class SectionTile(tk.Frame):
         
         # UI elements
         self.display_label = None
-        self.tooltip = None
         self.context_menu = None
 
         self._setup_ui()
@@ -150,16 +150,12 @@ class SectionTile(tk.Frame):
     def _bind_tooltip(self):
         """Bind tooltip events for defined state"""
         if self._path and self.display_label:
-            self.display_label.bind('<Enter>', self._show_tooltip)
-            self.display_label.bind('<Leave>', self._hide_tooltip)
-            # Also bind focus out on the main window
-            self.winfo_toplevel().bind('<FocusOut>', lambda e: self._hide_tooltip(None))
+            tooltip.bind_tooltip(self.display_label, lambda: self._build_section_tooltip_text())
     
     def _unbind_tooltip(self):
         """Unbind tooltip events"""
         if self.display_label:
-            self.display_label.unbind('<Enter>')
-            self.display_label.unbind('<Leave>')
+            tooltip.unbind_tooltip(self.display_label)
     
     def _bind_context_menu(self):
         """Bind right-click context menu for defined state"""
@@ -171,43 +167,16 @@ class SectionTile(tk.Frame):
         if self.display_label:
             self.display_label.unbind('<Button-3>')
     
-    def _show_tooltip(self, event):
-        """Show tooltip with full path"""
+    def _build_section_tooltip_text(self):
+        """Build tooltip text for section display"""
         if not self._path:
-            return
-        
-        # Prevent duplicate tooltips
-        if self.tooltip:
-            return
-        
-        # Create tooltip window
-        self.tooltip = tk.Toplevel()
-        self.tooltip.wm_overrideredirect(True)
-        self.tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
-        
+            return ""
+
         tooltip_text = self._path
         if not self._is_valid and self._invalid_reason:
             tooltip_text += f"\n{self._invalid_reason}"
 
-        label = tk.Label(
-            self.tooltip,
-            text=tooltip_text,
-            background="lightyellow",
-            relief=tk.SOLID,
-            borderwidth=1,
-            font=('Arial', 8),
-            justify='left'
-        )
-        label.pack()
-        
-        # Bind focus out to destroy tooltip
-        self.tooltip.bind('<FocusOut>', lambda e: self._hide_tooltip(None))
-    
-    def _hide_tooltip(self, event):
-        """Hide tooltip"""
-        if self.tooltip:
-            self.tooltip.destroy()
-            self.tooltip = None
+        return tooltip_text
     
     def _show_context_menu(self, event):
         """Show right-click context menu"""

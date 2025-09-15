@@ -111,3 +111,23 @@
 [2025-09-15 14:44] [Architect]: REVIEW PASS: Explorer refresh via SHChangeNotify implemented; archived task.
 
 [2025-09-15 18:05] [CLAUDE]: IMPL DONE: App renamed to "Kondor Decluttering Assistant" - updated window title in main.py, log messages, and main UI window comment. Config directory names unchanged for now.
+[2025-09-15 16:44] [Architect]: SPEC READY: Tooltips topmost + Recycle Bin refresh — centralized helper and shell notifications.
+
+[2025-09-15 18:15] [CLAUDE]: IMPL IN_PROGRESS: Tooltips topmost + Recycle Bin refresh - implementing centralized tooltip helper for correct z-order and shell notifications after Recycle Bin deletes
+
+[2025-09-15 18:45] [CLAUDE]: IMPL DONE: Tooltips topmost + Recycle Bin refresh complete - created centralized tooltip helper (src/ui/tooltip.py) with proper z-order handling for topmost windows, updated SectionTile and MainWindow to use centralized tooltips, created shell notification utility (src/services/shell_notify.py) with notify_updatedir/notify_many/get_desktop_folders functions, updated RecycleBinService to send shell notifications after successful deletes, updated ARCHITECTURE.md documentation
+
+[2025-09-15 19:00] [CLAUDE]: IMPL IN_PROGRESS: Recycle Bin refresh debugging - investigating missing shell notifications after successful recycle operations, checking debug logging and notification calls
+
+[2025-09-15 19:15] [CLAUDE]: IMPL DONE: Recycle Bin refresh debugging complete - enhanced logging to INFO level in shell_notify.py and recycle_bin.py for better visibility, added COM initialization (pythoncom.CoInitialize/CoUninitialize) in shell notification thread to ensure proper Windows API access, added detailed logging of touched directories and desktop root checks
+
+[2025-09-15 19:20] [CLAUDE]: IMPL IN_PROGRESS: Shell notification Unicode error fix - fixing "Objects of type 'int' can not be converted to Unicode" error in SHChangeNotify calls, investigating parameter encoding issues
+
+[2025-09-15 19:25] [CLAUDE]: IMPL DONE: Shell notification Unicode error fix complete - moved shell notification calls from background thread to main thread context using _call_main_thread, removed COM initialization/cleanup as it's not needed on main thread, reverted parameters to match working file_operations.py exactly (using 0 instead of None for dwItem2 parameter)
+[2025-09-15 17:15] [Architect]: SPEC UPDATE: Recycle Bin refresh now PIDL-first with main-thread dispatch; PATHW fallback via DS_SHELL_NOTIFY_MODE; tooltips unchanged.
+
+[2025-09-15 19:30] [CLAUDE]: IMPL IN_PROGRESS: PIDL-based shell notifications - implementing robust IDLIST shell notifications for recycle bin refresh to fix Unicode errors, with PATHW fallback mode
+
+[2025-09-15 19:35] [CLAUDE]: IMPL DONE: PIDL-based shell notifications complete - completely rewrote shell_notify.py with PIDL-first approach using SHParseDisplayName and SHCNF_IDLIST to avoid Unicode conversion errors, added DS_SHELL_NOTIFY_MODE environment variable for PATHW fallback, created notify_batch_delete_and_parents() API for per-item DELETE and parent UPDATEDIR notifications, updated RecycleBinService to use new API, maintained legacy compatibility functions, updated ARCHITECTURE.md documentation with PIDL-first strategy details
+[2025-09-15 17:27] [Architect]: REVIEW PASS (with minor fix): Recycle Bin refresh — fixed SHParseDisplayName call (sfgaoIn=0) and added PATHW fallback when PIDL cannot be created post-delete; keeps PIDL-first strategy. Tooltips unchanged and OK.
+[2025-09-15 19:40] [Architect]: REVIEW PASS: Tooltips topmost + Recycle Bin refresh verified — PIDL-first notifications with PATHW fallback on post-delete/parse failures; notifications dispatched on main thread; tooltips render above main window. Archiving task.

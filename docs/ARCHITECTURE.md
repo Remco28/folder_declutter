@@ -15,7 +15,7 @@ This document outlines the architecture of the Desktop Sorter application: a lig
 - Windows Integration (`src/services/win_integration.py`) – Manages window handle (HWND), always-on-top, and pass-through behavior by toggling `WS_EX_TRANSPARENT` via `pywin32` (`SetWindowLong`/`GetWindowLong`). Note: we avoid `WS_EX_LAYERED` unless paired with `SetLayeredWindowAttributes` due to Tk rendering issues; current design uses only `WS_EX_TRANSPARENT` for click-through.
 - Recycle Bin Service (`src/services/recycle_bin.py`) – Sends files/folders to the Windows Recycle Bin using `IFileOperation` (preferred) or `SHFileOperation` (fallback) with `FOF_ALLOWUNDO` (via `pywin32`). Runs operations in background threads with per-item result reporting. Includes optional confirmation dialog for large batches.
 - Error Handler (`src/file_handler/error_handler.py`) – Maps exceptions (permissions, missing paths, long-path issues) to user-facing dialogs and safe fallbacks.
- - Mini Overlay (`src/ui/mini_overlay.py`) – Small floating always-on-top overlay shown when the app is minimized; displays a resizable logo (scaled by screen resolution), supports drag-to-move and click-to-restore.
+ - Mini Overlay (`src/ui/mini_overlay.py`) – Small floating always-on-top overlay shown when the app is minimized; displays a resizable logo (scaled by screen resolution), supports drag-to-move and click-to-restore. On Windows, uses chroma-key transparency (`wm_attributes('-transparentcolor')`) to render logo-only without a white rectangle; falls back to rectangular overlay elsewhere.
 
 ### Supporting Services
 - Logging – Standard Python logging; file handler writes to `%APPDATA%/DesktopSorter/logs/app.log` with rotation.
@@ -75,10 +75,11 @@ Drop to invalid: block move → prompt_invalid_target (Reselect/Remove/Cancel)
   → Remove/Cancel: no action taken
 ```
 
-### Minimize to Overlay (Phase 10A)
+### Minimize to Overlay (Phase 10A/10B)
 ```
-Minimize main window → show MiniOverlay (borderless, topmost) with scaled icon
-Drag overlay to reposition (session memory)
+Minimize main window → compute window rect → show MiniOverlay (borderless, topmost) centered over that rect
+On Windows, overlay uses chroma-key transparency to render only the logo
+Drag overlay to reposition (overlay only); minimize again → overlay re-centers
 Click overlay → hide overlay → deiconify + raise + focus main window
 ```
 
@@ -97,7 +98,8 @@ Click overlay → hide overlay → deiconify + raise + focus main window
   - Recycle Bin: Prefers `IFileOperation` with `FOF_ALLOWUNDO | FOF_NOCONFIRMMKDIR | FOF_SILENT | FOF_NOCONFIRMATION` for Vista+; falls back to `SHFileOperation` with `FO_DELETE | FOF_ALLOWUNDO | FOF_SILENT | FOF_NOCONFIRMATION` for older systems.
     - Flags compatibility (Phase 7.1): include `FOFX_NOCOPYSECURITYATTRIBS` only if available; otherwise omit and continue, falling back to `SHFileOperation` if IFileOperation setup fails.
   - File moves: Uses `IFileOperation.MoveItem` per item (Windows) with flags `FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOCONFIRMMKDIR` (+ `FOFX_NOCOPYSECURITYATTRIBS` when available) to trigger native shell notifications so Desktop/Explorer views update instantly. Falls back to `shutil.move` if unavailable or on failure.
-  - Window styles: `GetWindowLong/SetWindowLong` to toggle `WS_EX_TRANSPARENT` for pass-through; keep always-on-top. Avoid `WS_EX_LAYERED` to prevent blank/transparent client area with Tk.
+- Window styles: `GetWindowLong/SetWindowLong` to toggle `WS_EX_TRANSPARENT` for pass-through; keep always-on-top. Avoid `WS_EX_LAYERED` to prevent blank/transparent client area with Tk.
+ - Tk overlay transparency (Windows): `Toplevel(overrideredirect=True, -topmost)` with `wm_attributes('-transparentcolor', '#FF00FF')`; overlay and content widgets use the same background key color. PNG alpha is composited by Tk against this key color, which can create slight edge halos; acceptable for this phase.
 - TkinterDnD2: must bundle TkDND resources with PyInstaller; normalizes Explorer drops to file paths.
 - Filesystem: Robust moves (cross-volume rename → copy+delete), long path prefixes (`\\?\\`) if needed, permission error handling.
 
@@ -123,7 +125,7 @@ Click overlay → hide overlay → deiconify + raise + focus main window
 - Task specs: `comms/tasks/YYYY-MM-DD-*.md`
 
 ## Implementation Status
-- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo), Phase 7 (Recycle Bin support with Windows shell integration), Phase 7.1 (Recycle Bin flags compatibility + robust fallback), Phase 8 (Invalid paths UX), Phase 8.1 (Context menu robustness), Phase 8.2 (Section reset), Phase 8.3 (Overwrite dialog z-order and text rendering fix), Phase 10A (Minimize to overlay). Windows moves now use IFileOperation for shell-integrated refresh.
+- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo), Phase 7 (Recycle Bin support with Windows shell integration), Phase 7.1 (Recycle Bin flags compatibility + robust fallback), Phase 8 (Invalid paths UX), Phase 8.1 (Context menu robustness), Phase 8.2 (Section reset), Phase 8.3 (Overwrite dialog z-order and text rendering fix), Phase 10A (Minimize to overlay), Phase 10B (Overlay transparency, centering, dynamic sizing). Windows moves now use IFileOperation for shell-integrated refresh.
 
 ---
 This overview captures how components connect, where Windows integration occurs, and the expected data flows. Update it when adding new integration points or changing flows materially.

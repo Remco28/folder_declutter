@@ -76,3 +76,10 @@
 
 [2025-09-15 12:45] [CLAUDE]: IMPL IN_PROGRESS: Phase 10A minimize to overlay - implementing MiniOverlay component with screen resolution-based scaling, drag-to-move, click-to-restore functionality
 [2025-09-15 13:00] [CLAUDE]: IMPL DONE: Phase 10A minimize to overlay complete - created MiniOverlay component with screen resolution-based icon scaling (32-96px bounds), Pillow/tkinter fallback, drag-to-move with threshold, click-to-restore, session position memory, integrated with MainWindow minimize/restore handling, updated architecture documentation
+[2025-09-15 11:18] [Architect]: SPEC READY: Phase 10B — Overlay logo transparency, centering, dynamic sizing (Windows).
+
+[2025-09-15 14:30] [CLAUDE]: IMPL IN_PROGRESS: Phase 10B overlay transparency and dynamic sizing - implementing Windows chroma-key transparency, dynamic sizing based on screen resolution, centered placement over main window
+
+[2025-09-15 14:45] [CLAUDE]: IMPL DONE: Phase 10B overlay transparency and dynamic sizing complete - implemented Windows chroma-key transparency with #FF00FF, dynamic sizing formula (min_dim / 4.2, clamped 192-512px), show_centered_over() method for centering over main window, updated window minimize handling to compute geometry and center overlay, preserved drag-to-move and click-to-restore functionality, fallback behavior for non-Windows platforms
+[2025-09-15 11:45] [Architect]: REVIEW PASS: Phase 10B — Overlay transparency, centering, dynamic sizing. Docs updated.
+[2025-09-15 11:52] [Architect]: SPEC READY: Phase 10C — Windows layered overlay (per-pixel alpha, perfect edges).

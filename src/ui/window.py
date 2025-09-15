@@ -284,11 +284,17 @@ class MainWindow(tk.Frame):
             if self.parent.state() == 'iconic':
                 self.logger.info("Window minimized - showing mini overlay")
 
+                # Compute main window geometry before withdrawing
+                x = self.parent.winfo_x()
+                y = self.parent.winfo_y()
+                w = self.parent.winfo_width()
+                h = self.parent.winfo_height()
+
                 # Hide the main window completely
                 self.parent.withdraw()
 
-                # Show the overlay (MiniOverlay manages its own last position)
-                self._mini_overlay.show()
+                # Show the overlay centered over the main window position
+                self._mini_overlay.show_centered_over((x, y, w, h))
 
         except Exception as e:
             self.logger.error(f"Error handling window minimize: {e}")

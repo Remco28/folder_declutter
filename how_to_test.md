@@ -54,10 +54,11 @@ How to run on Windows
   - Conflict: drop a file with same name → Replace/Skip/Cancel dialog appears above the main window; button labels are visible; choices apply per item; Cancel aborts remaining.
   - Undo: after a move completes, Undo enables; pressing Undo restores moved items (and prior contents if replaced). Repeated drops produce a LIFO undo stack.
 
-  Phase 10A — Minimize to overlay
-  - Minimize the app → a small floating overlay appears (borderless, topmost) at bottom-right.
-  - Click the overlay → main window restores (deiconify + raise + focus) and the overlay hides.
-  - Drag the overlay to a new position → minimize again → overlay reappears at the last position for this session.
+  Phase 10B — Overlay transparency, centering, dynamic sizing (Windows)
+  - Minimize the app → a borderless, topmost overlay shows only the logo (no white rectangle) centered over the main window's last position.
+  - Click the logo → main window restores (deiconify + raise + focus) and the overlay hides.
+  - Drag the logo to move it (overlay only). Minimize again → overlay appears centered over the main window (ignores prior overlay drag position when minimizing).
+  - On high-DPI displays, verify the logo scales up: size ≈ min(screen_w, screen_h)/4.2 clamped to [192, 512] and never upscaled beyond source. Expect slight edge halos due to chroma-key transparency.
 
   WSL/WSLg note
   - Always-on-top and Windows pass-through rely on native Win32 APIs and won’t behave correctly under WSL/WSLg. Test these features using native Windows Python.

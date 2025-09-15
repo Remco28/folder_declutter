@@ -6,7 +6,11 @@ Displays app logo/icon with drag-to-move and click-to-restore functionality
 import tkinter as tk
 import logging
 import os
+import platform
 from typing import Callable, Optional
+
+# Transparency key for Windows chroma-key transparency
+TRANSPARENT_KEY = '#FF00FF'
 
 
 class MiniOverlay:
@@ -32,19 +36,21 @@ class MiniOverlay:
 
         # Try to load and scale icon
         self.icon_image = self._load_and_scale_icon()
+        self.icon_size = (0, 0)  # Will be set by _load_and_scale_icon
 
         self.logger.debug("MiniOverlay initialized")
 
     def _load_and_scale_icon(self):
         """Load and scale app icon based on screen resolution"""
         try:
-            # Calculate target size based on screen resolution
+            # Calculate target size based on screen resolution using new formula
             screen_w = self.parent_root.winfo_screenwidth()
             screen_h = self.parent_root.winfo_screenheight()
             min_dimension = min(screen_w, screen_h)
-            target_size = max(32, min(96, round(min_dimension * 0.04)))
+            target_size = round(min_dimension / 4.2)
+            target_size = max(192, min(512, target_size))  # Clamp to [192, 512]
 
-            self.logger.debug(f"Screen: {screen_w}x{screen_h}, target icon size: {target_size}")
+            self.logger.debug(f"Screen: {screen_w}x{screen_h}, min_dim: {min_dimension}, target icon size: {target_size}")
 
             # Look for icon file
             icon_path = None
@@ -67,7 +73,23 @@ class MiniOverlay:
             try:
                 from PIL import Image, ImageTk
                 pil_image = Image.open(icon_path)
-                pil_image = pil_image.resize((target_size, target_size), Image.Resampling.LANCZOS)
+                original_w, original_h = pil_image.size
+
+                # Don't upscale beyond natural size
+                final_w = min(target_size, original_w)
+                final_h = min(target_size, original_h)
+
+                # Maintain aspect ratio
+                aspect_ratio = original_w / original_h
+                if final_w / aspect_ratio < final_h:
+                    final_h = round(final_w / aspect_ratio)
+                else:
+                    final_w = round(final_h * aspect_ratio)
+
+                self.icon_size = (final_w, final_h)
+                self.logger.debug(f"Pillow scaling: original {original_w}x{original_h} -> {final_w}x{final_h}")
+
+                pil_image = pil_image.resize((final_w, final_h), Image.Resampling.LANCZOS)
                 return ImageTk.PhotoImage(pil_image)
             except ImportError:
                 self.logger.debug("Pillow not available, using tkinter scaling")
@@ -83,25 +105,45 @@ class MiniOverlay:
                 if original_w <= 0 or original_h <= 0:
                     raise ValueError("Invalid image dimensions")
 
-                # Calculate scaling factors
-                scale_x = target_size / original_w
-                scale_y = target_size / original_h
+                # Don't upscale beyond natural size
+                final_w = min(target_size, original_w)
+                final_h = min(target_size, original_h)
+
+                # Maintain aspect ratio
+                aspect_ratio = original_w / original_h
+                if final_w / aspect_ratio < final_h:
+                    final_h = round(final_w / aspect_ratio)
+                else:
+                    final_w = round(final_h * aspect_ratio)
+
+                self.icon_size = (final_w, final_h)
+                self.logger.debug(f"Tkinter scaling: original {original_w}x{original_h} -> {final_w}x{final_h}")
+
+                # Calculate scaling factors based on final size
+                scale_x = final_w / original_w
+                scale_y = final_h / original_h
 
                 if scale_x > 1 or scale_y > 1:
                     # Zoom (integer factors only)
                     zoom_factor = int(min(scale_x, scale_y)) or 1
-                    return original.zoom(zoom_factor, zoom_factor)
+                    result = original.zoom(zoom_factor, zoom_factor)
+                    self.icon_size = (result.width(), result.height())
+                    return result
                 else:
                     # Subsample
                     subsample_factor = int(max(1/scale_x, 1/scale_y)) or 1
-                    return original.subsample(subsample_factor, subsample_factor)
+                    result = original.subsample(subsample_factor, subsample_factor)
+                    self.icon_size = (result.width(), result.height())
+                    return result
 
             except Exception as e:
                 self.logger.warning(f"Error loading/scaling icon: {e}")
+                self.icon_size = (target_size, target_size)  # Default size for text fallback
                 return None
 
         except Exception as e:
             self.logger.error(f"Error in icon loading: {e}")
+            self.icon_size = (96, 96)  # Safe fallback size
             return None
 
     def _get_default_position(self):
@@ -183,6 +225,87 @@ class MiniOverlay:
 
         except Exception as e:
             self.logger.error(f"Error showing overlay: {e}")
+            if self.overlay:
+                try:
+                    self.overlay.destroy()
+                except Exception:
+                    pass
+                self.overlay = None
+
+    def show_centered_over(self, rect: tuple[int, int, int, int]) -> None:
+        """
+        Show the overlay centered over the given rectangle (main window)
+
+        Args:
+            rect: (x, y, width, height) of the main window
+        """
+        if self.overlay:
+            self.logger.debug("Overlay already shown")
+            return
+
+        x, y, w, h = rect
+        ow, oh = self.icon_size
+
+        # Compute centered position
+        ox = x + (w - ow) // 2
+        oy = y + (h - oh) // 2
+
+        try:
+            # Create overlay window with transparency support
+            self.overlay = tk.Toplevel()
+            self.overlay.overrideredirect(True)  # Remove window decorations
+            self.overlay.attributes('-topmost', True)  # Always on top
+
+            # Set background to transparent key
+            self.overlay.configure(bg=TRANSPARENT_KEY)
+
+            # Enable Windows transparency if available
+            if platform.system() == 'Windows':
+                try:
+                    self.overlay.wm_attributes('-transparentcolor', TRANSPARENT_KEY)
+                    self.logger.debug("Windows transparency enabled")
+                except Exception as e:
+                    self.logger.warning(f"Windows transparency not available: {e}")
+
+            # Create content with transparent background
+            if self.icon_image:
+                # Use scaled icon with transparent background
+                self.overlay_label = tk.Label(
+                    self.overlay,
+                    image=self.icon_image,
+                    bg=TRANSPARENT_KEY,
+                    bd=0,
+                    highlightthickness=0,
+                    cursor="hand2"
+                )
+            else:
+                # Text fallback - still use transparent background
+                self.overlay_label = tk.Label(
+                    self.overlay,
+                    text="DS",
+                    font=('Arial', 24, 'bold'),
+                    bg=TRANSPARENT_KEY,
+                    fg='darkblue',
+                    cursor="hand2",
+                    bd=0,
+                    highlightthickness=0,
+                    padx=10,
+                    pady=10
+                )
+
+            self.overlay_label.pack()
+
+            # Bind events
+            self._bind_events()
+
+            # Position and show
+            self.overlay.geometry(f"+{ox}+{oy}")
+            self.overlay.deiconify()
+
+            self.logger.info(f"Mini overlay shown centered at ({ox}, {oy}) over rect {rect}")
+
+        except Exception as e:
+            self.logger.error(f"Error showing centered overlay: {e}")
             if self.overlay:
                 try:
                     self.overlay.destroy()

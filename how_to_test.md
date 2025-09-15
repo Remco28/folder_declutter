@@ -54,6 +54,13 @@ How to run on Windows
   - Conflict: drop a file with same name → Replace/Skip/Cancel dialog appears above the main window; button labels are visible; choices apply per item; Cancel aborts remaining.
   - Undo: after a move completes, Undo enables; pressing Undo restores moved items (and prior contents if replaced). Repeated drops produce a LIFO undo stack.
 
+  Explorer refresh verification (Desktop and folders)
+  - Move an item from Desktop to Folder A → verify icon disappears immediately without manual refresh.
+  - Move another item from Desktop to Folder A → verify disappearance without manual refresh.
+  - Move item from Folder A back to Desktop → verify immediate appearance.
+  - Repeat with multiple files and nested folders to test consistency.
+  - Test with both IFileOperation and shutil fallback scenarios (if available).
+
   Phase 10B/10C — Overlay transparency, OS drag, double-click restore (Windows)
   - Minimize the app → a borderless, topmost overlay shows only the logo (no white rectangle) centered over the main window's last position.
   - Drag: click-and-hold anywhere on the overlay and move → the overlay follows smoothly; releasing the mouse does not restore.

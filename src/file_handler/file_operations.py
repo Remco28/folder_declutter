@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Dict, Callable, Optional, Any
+from typing import List, Dict, Callable, Optional, Any, Set
 from ..config import ConfigManager
 from .error_handler import log_error
 
@@ -62,6 +62,9 @@ class FileOperations:
             target_dir = Path(request.get('target_dir', ''))
             options = request.get('options', {})
 
+            # Collect touched directories for batch notification
+            touched_dirs = set()
+
             self.logger.info(f"Starting move operation: {len(sources)} items to {target_dir}")
 
             # Ensure target directory exists
@@ -102,6 +105,11 @@ class FileOperations:
                 items.append(result)
                 actions.extend(item_actions)
 
+                # Collect touched directories for successful moves
+                if result.get('status') in ('ok', 'skipped'):
+                    touched_dirs.add(str(src.parent.resolve()))
+                    touched_dirs.add(str(dest.parent.resolve()))
+
                 # Stop if operation was cancelled
                 if result.get('cancelled'):
                     break
@@ -112,6 +120,9 @@ class FileOperations:
                 'started_at': started_at,
                 'finished_at': finished_at
             }
+
+            # Batch notify all touched directories at the end
+            self._shell_notify_many(touched_dirs)
 
             self.logger.info(f"Move operation completed: {len(items)} items processed")
             self._call_main_thread(lambda: on_done(batch_result, actions))
@@ -175,6 +186,10 @@ class FileOperations:
                 'src': str(src),
                 'dest': str(dest)
             })
+
+            # Notify shell of directory changes after successful move
+            self._shell_notify_updatedir(src.parent)
+            self._shell_notify_updatedir(dest.parent)
 
             self.logger.debug(f"Moved: {src} -> {dest}")
 
@@ -266,6 +281,11 @@ class FileOperations:
                 'src': str(src),
                 'dest': str(dest)
             })
+
+            # Notify shell of directory changes after successful move
+            self._shell_notify_updatedir(src.parent)
+            self._shell_notify_updatedir(dest.parent)
+
             self.logger.debug(f"Shell moved: {src} -> {dest}")
 
         except Exception as e:
@@ -376,6 +396,95 @@ class FileOperations:
             callback: Function to call on main thread
         """
         self.root.after(0, callback)
+
+    def _shell_notify_updatedir(self, path: Path) -> None:
+        """
+        Notify Windows Shell that a directory has been updated
+
+        Args:
+            path: Directory path to notify about
+        """
+        if not IS_WINDOWS or not PYWIN32_AVAILABLE:
+            return
+
+        try:
+            abs_path = str(path.resolve())
+            shell.SHChangeNotify(
+                shellcon.SHCNE_UPDATEDIR,
+                shellcon.SHCNF_PATHW,
+                abs_path,
+                0
+            )
+            self.logger.debug(f"Shell notified UPDATEDIR: {abs_path}")
+        except Exception as e:
+            self.logger.debug(f"SHChangeNotify failed for {path}: {e}")
+
+    def _shell_notify_many(self, touched_dirs: Set[str]) -> None:
+        """
+        Batch notify multiple directories and optionally Desktop roots
+
+        Args:
+            touched_dirs: Set of absolute directory paths that were modified
+        """
+        if not IS_WINDOWS or not PYWIN32_AVAILABLE:
+            return
+
+        # Notify all touched directories
+        for dir_path in touched_dirs:
+            try:
+                shell.SHChangeNotify(
+                    shellcon.SHCNE_UPDATEDIR,
+                    shellcon.SHCNF_PATHW,
+                    dir_path,
+                    0
+                )
+            except Exception as e:
+                self.logger.debug(f"Batch SHChangeNotify failed for {dir_path}: {e}")
+
+        # Belt-and-suspenders for Desktop folders
+        desktop_roots = self._get_desktop_folders()
+        for desktop_path in desktop_roots:
+            # Check if any touched path is under this Desktop
+            desktop_str = str(desktop_path)
+            if any(touched_dir.startswith(desktop_str) for touched_dir in touched_dirs):
+                try:
+                    shell.SHChangeNotify(
+                        shellcon.SHCNE_UPDATEDIR,
+                        shellcon.SHCNF_PATHW,
+                        desktop_str,
+                        0
+                    )
+                    self.logger.debug(f"Desktop root notified: {desktop_str}")
+                except Exception as e:
+                    self.logger.debug(f"Desktop notification failed for {desktop_str}: {e}")
+
+    def _get_desktop_folders(self) -> List[Path]:
+        """
+        Get Windows Desktop folder paths (user + public)
+
+        Returns:
+            List of Desktop folder paths
+        """
+        desktop_paths = []
+
+        if not IS_WINDOWS or not PYWIN32_AVAILABLE:
+            return desktop_paths
+
+        try:
+            # User Desktop
+            user_desktop = shell.SHGetFolderPath(0, shellcon.CSIDL_DESKTOPDIRECTORY, 0, 0)
+            desktop_paths.append(Path(user_desktop))
+        except Exception as e:
+            self.logger.debug(f"Could not get user desktop path: {e}")
+
+        try:
+            # Public Desktop (if available)
+            public_desktop = shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_DESKTOPDIRECTORY, 0, 0)
+            desktop_paths.append(Path(public_desktop))
+        except Exception as e:
+            self.logger.debug(f"Could not get public desktop path: {e}")
+
+        return desktop_paths
 
     def shutdown(self):
         """Clean shutdown of thread pool"""

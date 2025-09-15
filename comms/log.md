@@ -103,3 +103,9 @@
 
 [2025-09-15 17:30] [CLAUDE]: IMPL DONE: Overlay activation and instrumentation complete - added Pillow to requirements.txt, implemented DS_OVERLAY_MODE env var (auto/layered/tk) with forced mode support, enhanced logging with platform detection and clear error messages, added DS_OVERLAY_DEBUG for verbose event logging, fixed Tk drag with update_idletasks() flush, updated how_to_test.md with PowerShell troubleshooting examples and ARCHITECTURE.md with environment variable documentation
 [2025-09-15 14:02] [Architect]: REVIEW PASS: Overlay activation/instrumentation meets spec; archived task.
+[2025-09-15 14:32] [Architect]: SPEC READY: Ensure Explorer refresh after moves via SHChangeNotify (per-item + batched).
+
+[2025-09-15 17:45] [CLAUDE]: IMPL IN_PROGRESS: Explorer refresh after moves - implementing SHChangeNotify shell notifications with per-item and batched directory updates for immediate Desktop/Explorer view updates
+
+[2025-09-15 18:00] [CLAUDE]: IMPL DONE: Explorer refresh after moves complete - added SHChangeNotify shell notifications with _shell_notify_updatedir() for per-item updates, _shell_notify_many() for batched updates, touched directory collection during moves, Desktop-specific notifications with CSIDL_DESKTOPDIRECTORY/CSIDL_COMMON_DESKTOPDIRECTORY support, integrated with both IFileOperation and shutil move paths, updated how_to_test.md with verification steps
+[2025-09-15 14:44] [Architect]: REVIEW PASS: Explorer refresh via SHChangeNotify implemented; archived task.

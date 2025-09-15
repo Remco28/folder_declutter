@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Callable, Optional, Any, Set
 from ..config import ConfigManager
 from .error_handler import log_error
+from ..services import shell_notify
 
 
 logger = logging.getLogger(__name__)
@@ -404,20 +405,12 @@ class FileOperations:
         Args:
             path: Directory path to notify about
         """
-        if not IS_WINDOWS or not PYWIN32_AVAILABLE:
-            return
-
+        # Delegate to centralized shell notify utility (handles PIDL/PATHW and platform guards)
         try:
-            abs_path = str(path.resolve())
-            shell.SHChangeNotify(
-                shellcon.SHCNE_UPDATEDIR,
-                shellcon.SHCNF_PATHW,
-                abs_path,
-                0
-            )
-            self.logger.debug(f"Shell notified UPDATEDIR: {abs_path}")
+            shell_notify.notify_updatedir(path)
+            self.logger.debug(f"Shell UPDATEDIR notified for: {str(path)}")
         except Exception as e:
-            self.logger.debug(f"SHChangeNotify failed for {path}: {e}")
+            self.logger.debug(f"notify_updatedir failed for {path}: {e}")
 
     def _shell_notify_many(self, touched_dirs: Set[str]) -> None:
         """
@@ -426,37 +419,11 @@ class FileOperations:
         Args:
             touched_dirs: Set of absolute directory paths that were modified
         """
-        if not IS_WINDOWS or not PYWIN32_AVAILABLE:
-            return
-
-        # Notify all touched directories
-        for dir_path in touched_dirs:
-            try:
-                shell.SHChangeNotify(
-                    shellcon.SHCNE_UPDATEDIR,
-                    shellcon.SHCNF_PATHW,
-                    dir_path,
-                    0
-                )
-            except Exception as e:
-                self.logger.debug(f"Batch SHChangeNotify failed for {dir_path}: {e}")
-
-        # Belt-and-suspenders for Desktop folders
-        desktop_roots = self._get_desktop_folders()
-        for desktop_path in desktop_roots:
-            # Check if any touched path is under this Desktop
-            desktop_str = str(desktop_path)
-            if any(touched_dir.startswith(desktop_str) for touched_dir in touched_dirs):
-                try:
-                    shell.SHChangeNotify(
-                        shellcon.SHCNE_UPDATEDIR,
-                        shellcon.SHCNF_PATHW,
-                        desktop_str,
-                        0
-                    )
-                    self.logger.debug(f"Desktop root notified: {desktop_str}")
-                except Exception as e:
-                    self.logger.debug(f"Desktop notification failed for {desktop_str}: {e}")
+        # Delegate to centralized shell notify utility (handles Desktop roots, PIDL/PATHW)
+        try:
+            shell_notify.notify_many(touched_dirs)
+        except Exception as e:
+            self.logger.debug(f"notify_many failed: {e}")
 
     def _get_desktop_folders(self) -> List[Path]:
         """

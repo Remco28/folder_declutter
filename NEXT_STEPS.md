@@ -1,16 +1,11 @@
 # Next Steps for Desktop Sorter
 
-## Immediate Tasks
-- [x] Create .gitignore
-- [x] Create requirements.txt (tkinterdnd2, pywin32, pyinstaller)
-- [x] Break project into phases (see `comms/phases.md`)
-- [x] Create ARCHITECTURE.md from the template
-- [x] Ask Architect to update NEXT_STEPS.md
-- [x] Create interface mockup (sections grid + minimize icon)
-
 ## Bugs
-- [ ] Sometimes dragging into "Recycle Bin" doesn't refresh the page. Icon will persist after being removed. Refreshing will show it was moved correctly.
-- [ ] The tooltips need to appear over the main app.
+- [x] Sometimes dragging into "Recycle Bin" doesn't refresh the page. Icon will persist after being removed. Refreshing will show it was moved correctly. (Fixed 2025‑09‑15 via PIDL‑first shell notifications with PATHW fallback.)
+- [x] The tooltips need to appear over the main app. (Fixed 2025‑09‑15 via centralized tooltip helper.)
+
+## Maintenance
+- [ ] Light to moderate clean up of code
 
 ## Features
 - [ ] Add ability to "go to location" by 1. double clicking section (if its defined) 2. right click > menu > go to location
@@ -28,6 +23,7 @@
 - [x] Phase 8: Invalid paths UX — detect missing/inaccessible folders; reselect/remove flow; visual indicators; block drops until resolved.
 - [x] Phase 8.1: Context menu robustness — lazy toplevel-parented menu; existence checks; safe popup wrapper.
 - [x] Phase 8.2: Section reset — one‑stop “Reset Section…” to re-pick folder and label.
+- [x] Phase 10A: Minimize‑to‑overlay — mini overlay with layered/Tk modes, centered placement, drag‑move, double‑click to restore. (Completed; spec archived.)
 - [ ] Phase 9: Packaging — PyInstaller spec, include tkdnd resources and icon; produce .exe; smoke test.
 - [ ] Phase 10: Accessibility & polish — labels readable, high-contrast, keyboard nav basics; visual refinements.
 - [ ] Phase 11: Logging & diagnostics — rotating file logs in %APPDATA%; optional DnD debug flag.
@@ -38,10 +34,11 @@
 - [ ] Write developer notes for packaging and tkdnd bundling
 - [x] Add Windows Recycle Bin service notes once implemented (Phase 7)
 - [x] Document Invalid Paths UX (Phase 8), Context Menu Robustness (Phase 8.1), Section Reset (Phase 8.2)
-- [ ] Document Minimize-to-Overlay (Phase 10A)
+- [x] Document Minimize-to-Overlay (Phase 10A)
 
 ## Follow-ups / Known Issues
-- Overwrite dialog z-order and text rendering: dialog can open behind the app and options text may appear blank on some setups. Align parenting/topmost handling and verify fonts; consider custom dialog widget.
+- Log verbosity: after a short soak, consider reducing `services.shell_notify` INFO logs to DEBUG to cut noise.
+- Packaging: validate tkdnd and layered overlay assets are correctly bundled in PyInstaller spec (ties to Phase 9).
 
 ---
 

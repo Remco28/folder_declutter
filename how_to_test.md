@@ -61,8 +61,20 @@ How to run on Windows
   - Minimize again → overlay appears centered over the main window (it does not remember the overlay's prior drag position when minimizing).
   - On high-DPI displays, verify the logo scales up: size ≈ min(screen_w, screen_h)/4.2 clamped to [192, 512] and never upscaled beyond source. With layered overlay enabled (Windows), edges should be crisp (no halos). Ensure the process is DPI-aware (no OS scaling blur).
 
+  Overlay troubleshooting
+  - Force layered overlay mode (native Windows with per-pixel alpha):
+    PowerShell: $env:DS_OVERLAY_MODE = "layered"; python -m src.main
+    Expected: logs "Using layered overlay" on startup; overlay has crisp edges without halos.
+  - Force Tk fallback mode (chroma-key transparency):
+    PowerShell: $env:DS_OVERLAY_MODE = "tk"; python -m src.main
+    Expected: logs "Layered overlay disabled: forced Tk mode" on startup; overlay may have slight edge halos.
+  - Enable debug logging for overlay events:
+    PowerShell: $env:DS_OVERLAY_MODE = "tk"; $env:DS_OVERLAY_DEBUG = "1"; python -m src.main
+    Expected: detailed logs for click/drag/release events, screen coordinates, geometry changes, and Tk scaling info.
+  - Check what mode is active: look for "Overlay mode: auto (Windows detected)" and "Using layered overlay" or "Layered overlay disabled: <reason>" in startup logs.
+
   WSL/WSLg note
-  - Always-on-top and Windows pass-through rely on native Win32 APIs and won’t behave correctly under WSL/WSLg. Test these features using native Windows Python.
+  - Always-on-top and Windows pass-through rely on native Win32 APIs and won't behave correctly under WSL/WSLg. Test these features using native Windows Python.
 
   Dependencies status
 

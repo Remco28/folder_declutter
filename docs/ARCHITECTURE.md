@@ -91,7 +91,7 @@ Click overlay → hide overlay → deiconify + raise + focus main window
 ## Configuration
 - Central: `src/config/config_manager.py`; defaults in `src/config/defaults.py`.
 - Paths: `%APPDATA%/DesktopSorter/config.json` and `%APPDATA%/DesktopSorter/logs/app.log`.
-- Environment variables (optional): `LOG_LEVEL`, `DS_DND_DEBUG`.
+- Environment variables (optional): `LOG_LEVEL`, `DS_DND_DEBUG`, `DS_OVERLAY_MODE`, `DS_OVERLAY_DEBUG`.
 
 ## Integration Points
 - Windows Shell APIs (pywin32):
@@ -110,6 +110,7 @@ Click overlay → hide overlay → deiconify + raise + focus main window
 - Concurrency: Use worker threads for file operations; schedule UI updates via `Tk.after` to avoid cross-thread UI calls.
 - Drag sessions: DragDropBridge tracks a drag sequence across tiles; pass-through is disabled on first enter and restored once the drag leaves the toplevel or on drop, preserving the prior pass-through state.
 - Dialog z-order: Dialogs are parented to the main window; the app temporarily clears `-topmost` so system dialogs (folder picker, text input, overwrite) appear above, then restores it afterward.
+- Overlay mode control: `DS_OVERLAY_MODE` env var controls overlay implementation ('auto', 'layered', 'tk'); `DS_OVERLAY_DEBUG` enables verbose overlay event logging for troubleshooting.
 - Packaging: `pyinstaller.spec` must include `tkinterdnd2` resources and `resources/icon.png`. Verify DnD works in the bundled .exe.
 - Observability: INFO logs include actions (drop target, counts), WARN/ERROR capture failures (path, errno). Avoid logging full sensitive paths in public builds if required.
 - Accessibility/UX: Labels are readable by screen readers; highlight state visible in high contrast.

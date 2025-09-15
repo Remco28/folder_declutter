@@ -97,3 +97,9 @@
 
 [2025-09-15 16:45] [CLAUDE]: IMPL DONE: Windows overlay OS drag and double-click restore complete - modified LayeredOverlay to use CS_DBLCLKS window class style, pure OS-managed dragging via HTCAPTION, double-click restore handlers (WM_NCLBUTTONDBLCLK/WM_LBUTTONDBLCLK), removed manual drag logic and quick-click restore, updated Tk fallback to use double-click binding with preserved drag functionality
 [2025-09-15 13:28] [Architect]: REVIEW PASS (with minor fix): Windows overlay — OS drag + double-click restore. Updated docs (ARCHITECTURE.md, how_to_test.md); archived spec.
+[2025-09-15 13:47] [Architect]: SPEC READY: Overlay activation and instrumentation — ensure layered path, force modes, Tk drag flush + debug logs.
+
+[2025-09-15 17:00] [CLAUDE]: IMPL IN_PROGRESS: Overlay activation and instrumentation - adding Pillow dependency, overlay mode environment variables, improved logging, debug support, and reliable Tk drag
+
+[2025-09-15 17:30] [CLAUDE]: IMPL DONE: Overlay activation and instrumentation complete - added Pillow to requirements.txt, implemented DS_OVERLAY_MODE env var (auto/layered/tk) with forced mode support, enhanced logging with platform detection and clear error messages, added DS_OVERLAY_DEBUG for verbose event logging, fixed Tk drag with update_idletasks() flush, updated how_to_test.md with PowerShell troubleshooting examples and ARCHITECTURE.md with environment variable documentation
+[2025-09-15 14:02] [Architect]: REVIEW PASS: Overlay activation/instrumentation meets spec; archived task.

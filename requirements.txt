@@ -1,6 +1,7 @@
 # Runtime
 tkinterdnd2
 pywin32
+Pillow
 
 # Build/packaging (dev)
 pyinstaller

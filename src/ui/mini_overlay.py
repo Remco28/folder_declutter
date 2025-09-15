@@ -43,12 +43,23 @@ class MiniOverlay:
         self.last_position = None
         self.drag_data = {'x': 0, 'y': 0, 'dragging': False}
 
+        # Read environment variables
+        self.overlay_mode = os.environ.get('DS_OVERLAY_MODE', 'auto').lower()
+        self.debug_enabled = os.environ.get('DS_OVERLAY_DEBUG', '').lower() in ('1', 'true', 'yes')
+
+        # Log platform and mode selection
+        platform_name = platform.system()
+        self.logger.info(f"Overlay mode: {self.overlay_mode} ({platform_name} detected)")
+
         # Try to load and scale icon
         self.icon_image = self._load_and_scale_icon()
         self.icon_size = (0, 0)  # Will be set by _load_and_scale_icon
 
-        # Try to initialize layered overlay for Windows
-        if platform.system() == 'Windows' and LAYERED_OVERLAY_AVAILABLE:
+        # Initialize layered overlay based on mode
+        if self.overlay_mode == 'tk':
+            # Force Tk fallback
+            self.logger.info("Layered overlay disabled: forced Tk mode via DS_OVERLAY_MODE=tk")
+        elif platform.system() == 'Windows' and LAYERED_OVERLAY_AVAILABLE and self.overlay_mode in ('auto', 'layered'):
             try:
                 # Ensure Tk UI actions happen on the Tk thread via after()
                 def _restore_cb():
@@ -59,14 +70,39 @@ class MiniOverlay:
 
                 self.layered_overlay = LayeredOverlay(_restore_cb, logger=self.logger)
                 self.use_layered = True
-                self.logger.info("LayeredOverlay initialized for Windows per-pixel alpha")
+                self.logger.info("Using layered overlay")
             except Exception as e:
-                self.logger.warning(f"LayeredOverlay not available, using fallback: {e}")
-                self.use_layered = False
+                if self.overlay_mode == 'layered':
+                    # Force mode - re-raise the exception
+                    self.logger.error(f"LayeredOverlay failed in forced mode: {e}")
+                    raise
+                else:
+                    # Auto mode - fallback to Tk
+                    self.logger.info(f"Layered overlay disabled: {e}")
+                    self.use_layered = False
         else:
-            self.logger.debug("LayeredOverlay not available on this platform")
+            if self.overlay_mode == 'layered':
+                raise RuntimeError(f"LayeredOverlay forced but not available: Windows={platform.system() == 'Windows'}, Available={LAYERED_OVERLAY_AVAILABLE}")
+            elif platform.system() != 'Windows':
+                self.logger.info("Layered overlay disabled: not Windows platform")
+            elif not LAYERED_OVERLAY_AVAILABLE:
+                self.logger.info("Layered overlay disabled: LayeredOverlay import failed")
 
-        self.logger.debug("MiniOverlay initialized")
+        # Debug logging for Tk scaling and screen size
+        if self.debug_enabled:
+            try:
+                tk_scaling = self.parent_root.tk.call('tk', 'scaling')
+                screen_w = self.parent_root.winfo_screenwidth()
+                screen_h = self.parent_root.winfo_screenheight()
+                self.logger.debug(f"Tk scaling: {tk_scaling}, Screen size: {screen_w}x{screen_h}")
+            except Exception as e:
+                self.logger.debug(f"Could not get Tk scaling info: {e}")
+
+        mode_info = "layered" if self.use_layered else "Tk fallback"
+        self.logger.debug(f"MiniOverlay initialized ({mode_info})")
+
+        if self.debug_enabled:
+            self.logger.debug(f"Debug logging enabled, overlay mode: {self.overlay_mode}")
 
     def _load_and_scale_icon(self):
         """Load and scale app icon based on screen resolution"""
@@ -341,12 +377,19 @@ class MiniOverlay:
                 pil_image = self._load_icon_as_pil()
                 if pil_image:
                     self.layered_overlay.create(pil_image, ox, oy)
-                    self.logger.info(f"LayeredOverlay shown centered at ({ox}, {oy}) over rect {rect}")
+                    w, h = pil_image.size
+                    self.logger.info(f"LayeredOverlay shown at ({ox}, {oy}), size {w}x{h}")
                     return
                 else:
                     self.logger.warning("Failed to load PIL image for layered overlay, falling back")
             except Exception as e:
-                self.logger.warning(f"LayeredOverlay failed, falling back to Tk overlay: {e}")
+                if self.overlay_mode == 'layered':
+                    # In forced mode, don't fall back - log the exception and re-raise
+                    self.logger.exception("LayeredOverlay failed in forced mode")
+                    raise
+                else:
+                    # Auto mode - log exception and fall back
+                    self.logger.exception("LayeredOverlay failed; falling back to Tk")
 
         # Fallback to Tk overlay with chroma-key transparency
         try:
@@ -401,7 +444,7 @@ class MiniOverlay:
             self.overlay.geometry(f"+{ox}+{oy}")
             self.overlay.deiconify()
 
-            self.logger.info(f"Tk overlay (fallback) shown centered at ({ox}, {oy}) over rect {rect}")
+            self.logger.info(f"Tk overlay shown at ({ox}, {oy}), size {ow}x{oh}")
 
         except Exception as e:
             self.logger.error(f"Error showing centered overlay: {e}")
@@ -411,6 +454,9 @@ class MiniOverlay:
                 except Exception:
                     pass
                 self.overlay = None
+            # Re-raise if in forced mode
+            if self.overlay_mode in ('layered', 'tk'):
+                raise
 
     def hide(self) -> None:
         """Hide/destroy the overlay"""
@@ -461,6 +507,9 @@ class MiniOverlay:
         self.drag_data['y'] = event.y_root
         self.drag_data['dragging'] = False
 
+        if self.debug_enabled:
+            self.logger.debug(f"Click at screen coords: ({event.x_root}, {event.y_root})")
+
     def _on_drag(self, event):
         """Handle mouse drag - move overlay"""
         if not self.overlay:
@@ -473,6 +522,8 @@ class MiniOverlay:
         # Use threshold to distinguish drag from click
         if not self.drag_data['dragging'] and (abs(dx) > 3 or abs(dy) > 3):
             self.drag_data['dragging'] = True
+            if self.debug_enabled:
+                self.logger.debug(f"Drag started with delta: ({dx}, {dy})")
 
         if self.drag_data['dragging']:
             # Move overlay
@@ -481,7 +532,17 @@ class MiniOverlay:
             new_x = current_x + dx
             new_y = current_y + dy
 
+            if self.debug_enabled:
+                self.logger.debug(f"Drag: current=({current_x}, {current_y}), new=({new_x}, {new_y}), delta=({dx}, {dy})")
+
             self.overlay.geometry(f"+{new_x}+{new_y}")
+            # Flush geometry changes immediately to ensure position updates
+            self.overlay.update_idletasks()
+
+            if self.debug_enabled:
+                actual_x = self.overlay.winfo_x()
+                actual_y = self.overlay.winfo_y()
+                self.logger.debug(f"Post-flush position: ({actual_x}, {actual_y})")
 
             # Update drag reference point
             self.drag_data['x'] = event.x_root
@@ -490,6 +551,9 @@ class MiniOverlay:
     def _on_release(self, event):
         """Handle mouse release - only handle drag end, no single-click restore"""
         try:
+            if self.debug_enabled:
+                self.logger.debug(f"Release at screen coords: ({event.x_root}, {event.y_root}), dragging={self.drag_data['dragging']}")
+
             if self.drag_data['dragging']:
                 # Drag ended - log final position
                 final_x = self.overlay.winfo_x()
@@ -502,5 +566,7 @@ class MiniOverlay:
 
     def _on_double_click(self, event):
         """Handle double-click - restore main window"""
+        if self.debug_enabled:
+            self.logger.debug(f"Double-click at screen coords: ({event.x_root}, {event.y_root})")
         self.logger.info("Overlay double-clicked - restoring main window")
         self.on_restore()

@@ -19,8 +19,8 @@
 - [x] Phase 7: Recycle Bin — send-to-bin via IFileOperation with FOF_ALLOWUNDO (fallback SHFileOperation). (Completed; spec archived.)
 - [x] Phase 7.1: Recycle Bin flags compatibility — guard missing `FOFX_NOCOPYSECURITYATTRIBS`; robust fallback to SHFileOperation. (Completed; spec archived.)
  - [x] Phase 8: Invalid paths UX — detect missing/inaccessible folders; reselect/remove flow; visual indicators; block drops until resolved.
- - [ ] Phase 8.1: Context menu robustness — lazy toplevel-parented menu; existence checks; safe popup wrapper.
- - [ ] Phase 8.2: Section reset — one‑stop “Reset Section…” to re-pick folder and label.
+ - [x] Phase 8.1: Context menu robustness — lazy toplevel-parented menu; existence checks; safe popup wrapper.
+ - [x] Phase 8.2: Section reset — one‑stop “Reset Section…” to re-pick folder and label.
 - [ ] Phase 9: Packaging — PyInstaller spec, include tkdnd resources and icon; produce .exe; smoke test.
 - [ ] Phase 10: Accessibility & polish — labels readable, high-contrast, keyboard nav basics; visual refinements.
 - [ ] Phase 11: Logging & diagnostics — rotating file logs in %APPDATA%; optional DnD debug flag.
@@ -30,7 +30,11 @@
 - [ ] Create README.md (usage, build, troubleshooting)
 - [ ] Write developer notes for packaging and tkdnd bundling
 - [x] Add Windows Recycle Bin service notes once implemented (Phase 7)
- - [ ] Document Invalid Paths UX (Phase 8), Context Menu Robustness (Phase 8.1), Section Reset (Phase 8.2), and Minimize-to-Overlay (Phase 10A)
+ - [x] Document Invalid Paths UX (Phase 8), Context Menu Robustness (Phase 8.1), Section Reset (Phase 8.2)
+ - [ ] Document Minimize-to-Overlay (Phase 10A)
+
+## Follow-ups / Known Issues
+- Overwrite dialog z-order and text rendering: dialog can open behind the app and options text may appear blank on some setups. Align parenting/topmost handling and verify fonts; consider custom dialog widget.
 
 ---
 

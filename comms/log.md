@@ -63,3 +63,4 @@
 [2025-09-15 09:38] [CLAUDE]: IMPL DONE: Phase 8.2 Section reset complete - added Reset Section context menu item with combined folder and label selection flow, supports cancellation at each step, defaults label to folder basename, integrated with existing pass-through and topmost handling, updated architecture documentation
 [2025-09-15 12:05] [Architect]: REVIEW PASS: Phase 8.1 — Context menu robustness meets spec; archived task.
 [2025-09-15 12:06] [Architect]: REVIEW PASS (with minor fix): Phase 8.2 — Section reset meets spec; archived task. Fix: treat empty label as default to folder name, only cancel on None.
+[2025-09-15 12:20] [Architect]: DOCS UPDATED: Noted Windows IFileOperation-based moves (instant desktop refresh), updated data flow/integration points, test checklist, conflict dialog options; tracked overwrite dialog z-order/text issue for follow-up.

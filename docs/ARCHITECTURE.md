@@ -40,7 +40,7 @@ Explorer → tkinterdnd2 (Drop) → DragDrop → UI highlights target section
       → FileOperations.move_many(request) [worker thread]
           → conflict? → Dialogs.overwrite_cancel (UI thread)
           → destination is Recycle Bin? → RecycleBinService.delete_many(paths, on_done)
-          → else → move (cross-volume aware), report per-item success/failure
+          → else → move via IFileOperation on Windows (shutil fallback elsewhere) → Explorer refreshes immediately → report per-item success/failure
       → UI updates counts/errors; clear highlight
       ```
 
@@ -96,6 +96,7 @@ Click overlay → hide overlay → deiconify + raise + focus main window
 - Windows Shell APIs (pywin32):
   - Recycle Bin: Prefers `IFileOperation` with `FOF_ALLOWUNDO | FOF_NOCONFIRMMKDIR | FOF_SILENT | FOF_NOCONFIRMATION` for Vista+; falls back to `SHFileOperation` with `FO_DELETE | FOF_ALLOWUNDO | FOF_SILENT | FOF_NOCONFIRMATION` for older systems.
     - Flags compatibility (Phase 7.1): include `FOFX_NOCOPYSECURITYATTRIBS` only if available; otherwise omit and continue, falling back to `SHFileOperation` if IFileOperation setup fails.
+  - File moves: Uses `IFileOperation.MoveItem` per item (Windows) with flags `FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOCONFIRMMKDIR` (+ `FOFX_NOCOPYSECURITYATTRIBS` when available) to trigger native shell notifications so Desktop/Explorer views update instantly. Falls back to `shutil.move` if unavailable or on failure.
   - Window styles: `GetWindowLong/SetWindowLong` to toggle `WS_EX_TRANSPARENT` for pass-through; keep always-on-top. Avoid `WS_EX_LAYERED` to prevent blank/transparent client area with Tk.
 - TkinterDnD2: must bundle TkDND resources with PyInstaller; normalizes Explorer drops to file paths.
 - Filesystem: Robust moves (cross-volume rename → copy+delete), long path prefixes (`\\?\\`) if needed, permission error handling.
@@ -122,7 +123,10 @@ Click overlay → hide overlay → deiconify + raise + focus main window
 - Task specs: `comms/tasks/YYYY-MM-DD-*.md`
 
 ## Implementation Status
-- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo), Phase 7 (Recycle Bin support with Windows shell integration), Phase 7.1 (Recycle Bin flags compatibility + robust fallback), Phase 8 (Invalid paths UX), Phase 8.1 (Context menu robustness), Phase 8.2 (Section reset).
+- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo), Phase 7 (Recycle Bin support with Windows shell integration), Phase 7.1 (Recycle Bin flags compatibility + robust fallback), Phase 8 (Invalid paths UX), Phase 8.1 (Context menu robustness), Phase 8.2 (Section reset). Windows moves now use IFileOperation for shell-integrated refresh.
+
+## Known Issues
+- Overwrite dialog z-order: On some systems, the overwrite dialog may appear behind the main window. Options text may render blank in rare cases. Track and fix by ensuring topmost/transient parenting and font rendering; consider switching to a custom Toplevel dialog.
 - Planned: Phase 10A (Minimize to overlay).
 
 ---

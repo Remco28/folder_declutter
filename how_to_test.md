@@ -50,6 +50,7 @@ How to run on Windows
 
   Phase 6 — File operations + Undo
   - Drop files onto a defined tile pointing to a writable folder → files move; UI remains responsive; summary logged.
+  - Desktop refresh: when moving items from the Desktop, icons disappear immediately after the move (Windows shell-backed moves).
   - Conflict: drop a file with same name → Replace/Skip/Cancel dialog appears; choices apply per item; Cancel aborts remaining.
   - Undo: after a move completes, Undo enables; pressing Undo restores moved items (and prior contents if replaced). Repeated drops produce a LIFO undo stack.
 
@@ -59,4 +60,4 @@ How to run on Windows
   Dependencies status
 
   - In your venv: tkinterdnd2 and PyInstaller are present; pywin32 is not (expected on Linux).
-  - On Windows: ensure pywin32 is installed for pass-through and (Phase 7) Recycle Bin support.
+  - On Windows: ensure pywin32 is installed for pass-through and shell-backed file operations (Recycle Bin and moves).

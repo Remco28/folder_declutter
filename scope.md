@@ -70,7 +70,7 @@ The Desktop Sorter is a lightweight, free, Windows-only application designed to 
   - No additional features (e.g., no right-click menu).
 
 ### Dialogs
-- **Overwrite/Cancel Dialog**: Pops up when a file/folder name conflict occurs. Options: "Overwrite" (replaces existing file/folder), "Cancel" (aborts the move).
+- **Conflict Dialog**: Pops up when a file/folder name conflict occurs. Options: "Overwrite/Replace" (replaces existing file/folder), "Skip" (leave existing and keep source), or "Cancel" (abort remaining items in the batch).
 - **Folder Move Confirmation**: Pops up when dragging a folder. Message: "Move folder '<name>' to '<section>'?" with "Confirm" or "Cancel" buttons.
 - **Invalid Folder Dialog**: When a section's folder is inaccessible, shows: "Folder '<path>' not found. Reselect folder or delete section?" with buttons: "Reselect" (opens file picker), "Delete" (removes section).
 

@@ -35,9 +35,8 @@ class SectionTile(tk.Frame):
         self.display_label = None
         self.tooltip = None
         self.context_menu = None
-        
+
         self._setup_ui()
-        self._setup_context_menu()
         
         self.logger.debug(f"SectionTile {section_id} initialized")
 
@@ -128,13 +127,25 @@ class SectionTile(tk.Frame):
         self._bind_tooltip()
         self._bind_context_menu()
     
-    def _setup_context_menu(self):
-        """Create context menu for defined tiles"""
-        self.context_menu = Menu(self, tearoff=0)
-        self.context_menu.add_command(label="Change Location...", command=self._change_location)
-        self.context_menu.add_command(label="Rename Label...", command=self._rename_label)
-        self.context_menu.add_separator()
-        self.context_menu.add_command(label="Remove Location", command=self._remove_location)
+    def _ensure_context_menu(self):
+        """Ensure context menu exists and is valid, creating/recreating as needed"""
+        if getattr(self, 'context_menu', None) is None:
+            self.context_menu = Menu(self.winfo_toplevel(), tearoff=0)
+            self._populate_context_menu(self.context_menu)
+        elif not self.context_menu.winfo_exists():
+            self.context_menu = Menu(self.winfo_toplevel(), tearoff=0)
+            self._populate_context_menu(self.context_menu)
+        return self.context_menu
+
+    def _populate_context_menu(self, menu):
+        """Populate context menu with items"""
+        menu.delete(0, 'end')
+        menu.add_command(label="Change Location...", command=self._change_location)
+        menu.add_command(label="Rename Label...", command=self._rename_label)
+        menu.add_separator()
+        menu.add_command(label="Reset Section...", command=self._reset_section)
+        menu.add_separator()
+        menu.add_command(label="Remove Location", command=self._remove_location)
     
     def _bind_tooltip(self):
         """Bind tooltip events for defined state"""
@@ -201,11 +212,24 @@ class SectionTile(tk.Frame):
     def _show_context_menu(self, event):
         """Show right-click context menu"""
         # Only show for defined tiles
-        if self._path and self.context_menu:
+        if not self._path:
+            return
+
+        menu = self._ensure_context_menu()
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        except tk.TclError:
+            # Recreate menu once and retry
+            menu = self._ensure_context_menu()
             try:
-                self.context_menu.tk_popup(event.x_root, event.y_root)
-            finally:
-                self.context_menu.grab_release()
+                menu.tk_popup(event.x_root, event.y_root)
+            except tk.TclError as e:
+                self.logger.error(f"Context menu popup failed: {e}")
+        finally:
+            try:
+                menu.grab_release()
+            except Exception:
+                pass
     
     def _on_click_add(self, event):
         """Handle click on empty tile"""
@@ -333,6 +357,80 @@ class SectionTile(tk.Frame):
         if result:
             self.clear_section()
             self.logger.info(f"Section {self.section_id} location removed")
+
+    def _reset_section(self):
+        """Handle Reset Section context menu item"""
+        from .dialogs import prompt_select_folder, prompt_text
+        import os.path
+
+        self.logger.info(f"Starting reset for section {self.section_id}")
+
+        root = self.winfo_toplevel()
+        if self.pass_through_controller:
+            with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                try:
+                    root.attributes('-topmost', False)
+                except Exception:
+                    pass
+                try:
+                    # Step 1: Prompt for folder selection
+                    new_path = prompt_select_folder(parent=root)
+                    if not new_path:
+                        self.logger.info(f"Section {self.section_id} reset cancelled at folder selection")
+                        return
+
+                    # Step 2: Prompt for label with folder basename as default
+                    default_label = os.path.basename(new_path.rstrip(os.sep))
+                    new_label = prompt_text("Enter Label", default_label, parent=root)
+                    # Treat cancel (None) as abort; empty string defaults to folder basename
+                    if new_label is None:
+                        self.logger.info(f"Section {self.section_id} reset cancelled at label entry")
+                        return
+
+                    # If label is empty or whitespace, use folder basename
+                    if not str(new_label).strip():
+                        new_label = default_label
+                finally:
+                    try:
+                        root.attributes('-topmost', True)
+                        root.lift()
+                        root.focus_force()
+                    except Exception:
+                        pass
+        else:
+            try:
+                root.attributes('-topmost', False)
+            except Exception:
+                pass
+            try:
+                # Step 1: Prompt for folder selection
+                new_path = prompt_select_folder(parent=root)
+                if not new_path:
+                    self.logger.info(f"Section {self.section_id} reset cancelled at folder selection")
+                    return
+
+                # Step 2: Prompt for label with folder basename as default
+                default_label = os.path.basename(new_path.rstrip(os.sep))
+                new_label = prompt_text("Enter Label", default_label, parent=root)
+                # Treat cancel (None) as abort; empty string defaults to folder basename
+                if new_label is None:
+                    self.logger.info(f"Section {self.section_id} reset cancelled at label entry")
+                    return
+
+                # If label is empty or whitespace, use folder basename
+                if not str(new_label).strip():
+                    new_label = default_label
+            finally:
+                try:
+                    root.attributes('-topmost', True)
+                    root.lift()
+                    root.focus_force()
+                except Exception:
+                    pass
+
+        # Apply the reset
+        self.set_section(new_label, new_path)
+        self.logger.info(f"Section {self.section_id} reset complete - new label: '{new_label}', new path: '{new_path}'")
     
     def set_section(self, label, path):
         """Set section to defined state with label and path"""

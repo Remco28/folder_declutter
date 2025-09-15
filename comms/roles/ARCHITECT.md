@@ -54,3 +54,5 @@ Our collaboration follows a structured, multi-stage process:
 5.  **Review & Archive:** You perform a **code review** of the implementation against the specification. If the review passes, you archive the task by moving the spec file to `comms/tasks/archive/`.
 
 **Revision Loop:** If a code review fails, You will document the necessary revisions and notify the User. This initiates a new implementation cycle for the Developer.
+
+**Minor Fixes:** If the review uncovers a small, unambiguous issue that is faster to correct than to bounce back (e.g., a trivial conditional or text tweak), you may apply the minimal fix directly, document it in the review log as `REVIEW PASS (with minor fix)`, and proceed to archive. For anything non-trivial or ambiguous, use the Revision Loop.

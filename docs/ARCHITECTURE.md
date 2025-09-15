@@ -63,7 +63,7 @@ main → ConfigManager.load(appdata_path) → apply defaults (Recycle Bin sectio
 User can:
   - Change Location… → prompt_select_folder → update path
   - Rename Label… → prompt_text → update label
-  - Reset Section… (Phase 8.2) → prompt_select_folder → prompt_text → update path+label in one flow
+  - Reset Section… → prompt_select_folder → prompt_text → update path+label in one flow
 Validation: ConfigManager.update_and_save → Window refreshes section state
 ```
 
@@ -122,8 +122,8 @@ Click overlay → hide overlay → deiconify + raise + focus main window
 - Task specs: `comms/tasks/YYYY-MM-DD-*.md`
 
 ## Implementation Status
-- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo), Phase 7 (Recycle Bin support with Windows shell integration), Phase 7.1 (Recycle Bin flags compatibility + robust fallback).
-- Planned: Phase 8 (Invalid paths UX), Phase 8.1 (Context menu robustness), Phase 8.2 (Section reset), Phase 10A (Minimize to overlay).
+- Completed: Phase 2.1 (UI polish), Phase 3/3.1 (Windows pass-through + stabilization), Phase 4 (Config persistence), Phase 5 (Drag-and-drop), Phase 6 (File operations + Undo), Phase 7 (Recycle Bin support with Windows shell integration), Phase 7.1 (Recycle Bin flags compatibility + robust fallback), Phase 8 (Invalid paths UX), Phase 8.1 (Context menu robustness), Phase 8.2 (Section reset).
+- Planned: Phase 10A (Minimize to overlay).
 
 ---
 This overview captures how components connect, where Windows integration occurs, and the expected data flows. Update it when adding new integration points or changing flows materially.

@@ -390,6 +390,14 @@ class MainWindow(tk.Frame):
         """Handle section state changes and persist to config"""
         self.logger.info(f"Section {section_id} changed: {section_data}")
 
+        # Update in-memory state to keep runtime consistent
+        if section_data is None:
+            # Section cleared
+            if section_id in self.sections:
+                del self.sections[section_id]
+        else:
+            self.sections[section_id] = section_data
+
         # Persist to config if config manager is available
         if self.config_manager and self.config is not None:
             if section_data is None:

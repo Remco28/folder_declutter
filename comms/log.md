@@ -55,3 +55,11 @@
 [2025-09-14 10:00] [Developer]: IMPL DONE: Phase 8 Invalid paths UX complete - enhanced section.py with path validation and visual indicators (red border + subtitle for invalid sections), added prompt_invalid_target dialog with Reselect/Remove/Cancel options, modified window.py to guard drops on invalid sections with recovery flow, improved tooltips to show invalid reasons, revalidation on drop attempts
 [2025-09-14 10:15] [Developer]: IMPL IN_PROGRESS: Phase 8 Follow-up fixups - extracting reusable _on_move_done method, fixing undefined callback, routing no-path tiles to recovery flow, adding startup logging
 [2025-09-14 10:25] [Developer]: IMPL DONE: Phase 8 Follow-up fixups complete - extracted reusable _on_move_done method and fixed undefined callback usage, routed no-path tiles to recovery dialog flow, enhanced startup logging to include detailed invalid reasons (existence and write permission checks)
+
+[2025-09-15 12:00] [Architect]: REVIEW PASS: Phase 8 — Invalid Paths UX meets spec; applied minor in-memory state sync fix and archived task.
+[2025-09-15 09:30] [CLAUDE]: IMPL IN_PROGRESS: Phase 8.1 Context menu robustness - implementing lazy toplevel-parented menu creation, existence checks, and safe popup wrapper to fix TclError invalid command name
+[2025-09-15 09:33] [CLAUDE]: IMPL DONE: Phase 8.1 Context menu robustness complete - implemented lazy toplevel-parented context menu with _ensure_context_menu(), existence checks via winfo_exists(), safe popup wrapper with double-retry logic and error logging, context menus now persist across state redraws
+[2025-09-15 09:35] [CLAUDE]: IMPL IN_PROGRESS: Phase 8.2 Section reset - implementing Reset Section context menu item with combined folder and label selection flow
+[2025-09-15 09:38] [CLAUDE]: IMPL DONE: Phase 8.2 Section reset complete - added Reset Section context menu item with combined folder and label selection flow, supports cancellation at each step, defaults label to folder basename, integrated with existing pass-through and topmost handling, updated architecture documentation
+[2025-09-15 12:05] [Architect]: REVIEW PASS: Phase 8.1 — Context menu robustness meets spec; archived task.
+[2025-09-15 12:06] [Architect]: REVIEW PASS (with minor fix): Phase 8.2 — Section reset meets spec; archived task. Fix: treat empty label as default to folder name, only cancel on None.

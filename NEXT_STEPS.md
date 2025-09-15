@@ -18,7 +18,7 @@
 - [x] Phase 6: File operations + Undo — threaded moves, conflict detection, overwrite/cancel dialog, session multi-level undo. (Completed; spec archived.)
 - [x] Phase 7: Recycle Bin — send-to-bin via IFileOperation with FOF_ALLOWUNDO (fallback SHFileOperation). (Completed; spec archived.)
 - [x] Phase 7.1: Recycle Bin flags compatibility — guard missing `FOFX_NOCOPYSECURITYATTRIBS`; robust fallback to SHFileOperation. (Completed; spec archived.)
- - [ ] Phase 8: Invalid paths UX — detect missing/inaccessible folders; reselect/remove flow; visual indicators; block drops until resolved.
+ - [x] Phase 8: Invalid paths UX — detect missing/inaccessible folders; reselect/remove flow; visual indicators; block drops until resolved.
  - [ ] Phase 8.1: Context menu robustness — lazy toplevel-parented menu; existence checks; safe popup wrapper.
  - [ ] Phase 8.2: Section reset — one‑stop “Reset Section…” to re-pick folder and label.
 - [ ] Phase 9: Packaging — PyInstaller spec, include tkdnd resources and icon; produce .exe; smoke test.

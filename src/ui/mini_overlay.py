@@ -7,6 +7,7 @@ import tkinter as tk
 import logging
 import os
 import platform
+import queue
 from typing import Callable, Optional
 
 # Transparency key for Windows chroma-key transparency
@@ -43,6 +44,11 @@ class MiniOverlay:
         self.last_position = None
         self.drag_data = {'x': 0, 'y': 0, 'dragging': False}
 
+        # Layered overlay restore queue (WndProc runs off the Tk thread).
+        self._restore_queue: queue.Queue[str] = queue.Queue()
+        self._restore_poll_id: Optional[str] = None
+        self._restore_poll_interval_ms = 50
+
         # Read environment variables
         self.overlay_mode = os.environ.get('DS_OVERLAY_MODE', 'auto').lower()
         self.debug_enabled = os.environ.get('DS_OVERLAY_DEBUG', '').lower() in ('1', 'true', 'yes')
@@ -61,14 +67,7 @@ class MiniOverlay:
             self.logger.info("Layered overlay disabled: forced Tk mode via DS_OVERLAY_MODE=tk")
         elif platform.system() == 'Windows' and LAYERED_OVERLAY_AVAILABLE and self.overlay_mode in ('auto', 'layered'):
             try:
-                # Ensure Tk UI actions happen on the Tk thread via after()
-                def _restore_cb():
-                    try:
-                        self.parent_root.after(0, self.on_restore)
-                    except Exception as e:
-                        self.logger.error(f"Error scheduling restore on Tk thread: {e}")
-
-                self.layered_overlay = LayeredOverlay(_restore_cb, logger=self.logger)
+                self.layered_overlay = LayeredOverlay(self._queue_layered_restore, logger=self.logger)
                 self.use_layered = True
                 self.logger.info("Using layered overlay")
             except Exception as e:
@@ -103,6 +102,67 @@ class MiniOverlay:
 
         if self.debug_enabled:
             self.logger.debug(f"Debug logging enabled, overlay mode: {self.overlay_mode}")
+
+    def _queue_layered_restore(self) -> None:
+        """Queue a restore request from the layered overlay WndProc."""
+        try:
+            self._restore_queue.put_nowait("restore")
+        except Exception as e:
+            self.logger.error(f"Error queuing layered overlay restore: {e}")
+
+    def _start_restore_pump(self) -> None:
+        """Ensure the Tk-thread pump is polling for restore requests."""
+        if self._restore_poll_id is not None:
+            return
+
+        self._restore_poll_id = self.parent_root.after(
+            self._restore_poll_interval_ms, self._process_restore_queue
+        )
+
+    def _process_restore_queue(self) -> None:
+        """Drain queued restore requests on the Tk thread."""
+        self._restore_poll_id = None
+
+        processed = False
+        while True:
+            try:
+                self._restore_queue.get_nowait()
+            except queue.Empty:
+                break
+            else:
+                processed = True
+                try:
+                    self.on_restore()
+                except Exception as e:
+                    self.logger.error(f"Error handling queued restore: {e}")
+
+        if self.layered_overlay and self.layered_overlay.is_visible:
+            # Keep polling while the layered overlay is active.
+            self._start_restore_pump()
+        elif not self._restore_queue.empty():
+            # Ensure any straggling events are handled.
+            self._start_restore_pump()
+
+        if not processed and self.debug_enabled and not self._restore_queue.empty():
+            self.logger.debug("Restore pump rescheduled with pending items")
+
+    def _stop_restore_pump(self) -> None:
+        """Stop the restore pump and clear any pending events."""
+        if self._restore_poll_id is not None:
+            try:
+                self.parent_root.after_cancel(self._restore_poll_id)
+            except Exception:
+                pass
+            self._restore_poll_id = None
+
+        self._clear_restore_queue()
+
+    def _clear_restore_queue(self) -> None:
+        while not self._restore_queue.empty():
+            try:
+                self._restore_queue.get_nowait()
+            except queue.Empty:
+                break
 
     def _load_and_scale_icon(self):
         """Load and scale app icon based on screen resolution"""
@@ -379,16 +439,20 @@ class MiniOverlay:
                     self.layered_overlay.create(pil_image, ox, oy)
                     w, h = pil_image.size
                     self.logger.info(f"LayeredOverlay shown at ({ox}, {oy}), size {w}x{h}")
+                    self._clear_restore_queue()
+                    self._start_restore_pump()
                     return
                 else:
                     self.logger.warning("Failed to load PIL image for layered overlay, falling back")
             except Exception as e:
                 if self.overlay_mode == 'layered':
                     # In forced mode, don't fall back - log the exception and re-raise
+                    self._stop_restore_pump()
                     self.logger.exception("LayeredOverlay failed in forced mode")
                     raise
                 else:
                     # Auto mode - log exception and fall back
+                    self._stop_restore_pump()
                     self.logger.exception("LayeredOverlay failed; falling back to Tk")
 
         # Fallback to Tk overlay with chroma-key transparency
@@ -467,6 +531,7 @@ class MiniOverlay:
                 self.logger.info("LayeredOverlay hidden")
             except Exception as e:
                 self.logger.error(f"Error hiding layered overlay: {e}")
+        self._stop_restore_pump()
 
         # Handle Tk overlay
         if self.overlay:

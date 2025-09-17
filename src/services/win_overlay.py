@@ -14,10 +14,26 @@ if TYPE_CHECKING:
 # Only import on Windows
 if platform.system() == 'Windows':
     try:
+        import ctypes
+        from ctypes import wintypes
         import win32gui
         import win32con
         import win32api
         from PIL import Image
+
+        user32 = ctypes.windll.user32
+        kernel32 = ctypes.windll.kernel32
+
+        class BLENDFUNCTION(ctypes.Structure):
+            """ctypes representation of the Win32 BLENDFUNCTION struct."""
+
+            _fields_ = [
+                ('BlendOp', ctypes.c_ubyte),
+                ('BlendFlags', ctypes.c_ubyte),
+                ('SourceConstantAlpha', ctypes.c_ubyte),
+                ('AlphaFormat', ctypes.c_ubyte),
+            ]
+
         WINDOWS_AVAILABLE = True
     except ImportError:
         WINDOWS_AVAILABLE = False
@@ -78,7 +94,9 @@ class LayeredOverlay:
             wc.hInstance = win32gui.GetModuleHandle(None)
             wc.lpszClassName = "LayeredOverlayClass"
             wc.lpfnWndProc = self._window_proc
-            wc.hbrBackground = None
+            # Use a stock NULL_BRUSH so the window stays transparent without pywin32
+            # complaining about a missing HBRUSH handle (pywin32 >= 306 rejects None).
+            wc.hbrBackground = win32gui.GetStockObject(win32con.NULL_BRUSH)
             wc.hCursor = win32gui.LoadCursor(0, win32con.IDC_ARROW)
             wc.style = win32con.CS_DBLCLKS  # Enable double-click messages
 
@@ -133,8 +151,6 @@ class LayeredOverlay:
 
             # For layered windows, we need to use a different approach
             # Create a 32-bit bitmap and manually set the pixel data
-            import ctypes
-            from ctypes import wintypes
 
             # Create BITMAPINFO structure for 32-bit ARGB
             class BITMAPINFOHEADER(ctypes.Structure):
@@ -216,28 +232,39 @@ class LayeredOverlay:
     def _update_layered_window(self, x: int, y: int) -> None:
         """Update layered window position and content"""
         try:
-            # BLENDFUNCTION for per-pixel alpha
-            blend = win32gui.BLENDFUNCTION(
-                win32con.AC_SRC_OVER,  # BlendOp
-                0,                     # BlendFlags
-                255,                   # SourceConstantAlpha
-                win32con.AC_SRC_ALPHA  # AlphaFormat - use per-pixel alpha
-            )
+            dest = wintypes.POINT(x, y)
+            size = wintypes.SIZE(self.width, self.height)
+            src_pos = wintypes.POINT(0, 0)
+            blend = BLENDFUNCTION(win32con.AC_SRC_OVER, 0, 255, win32con.AC_SRC_ALPHA)
 
-            # Update the layered window
-            result = win32gui.UpdateLayeredWindow(
-                self.hwnd,              # Window handle
-                self.hdc_screen,        # Destination DC
-                (x, y),                 # Window position
-                (self.width, self.height),  # Window size
-                self.hdc_mem,           # Source DC
-                (0, 0),                 # Source position
-                0,                      # Color key (not used with per-pixel alpha)
-                blend,                  # Blend function
-                win32con.ULW_ALPHA      # Use alpha blending
+            # Reset last error so we can report meaningful failures from UpdateLayeredWindow.
+            kernel32.SetLastError(0)
+
+            # Call UpdateLayeredWindow directly via ctypes for consistent struct marshaling.
+            result = user32.UpdateLayeredWindow(
+                self.hwnd,
+                self.hdc_screen,
+                ctypes.byref(dest),
+                ctypes.byref(size),
+                self.hdc_mem,
+                ctypes.byref(src_pos),
+                0,
+                ctypes.byref(blend),
+                win32con.ULW_ALPHA
             )
 
             if not result:
+                last_error = kernel32.GetLastError()
+                if last_error:
+                    try:
+                        error_message = win32api.FormatMessage(last_error).strip()
+                    except Exception:
+                        error_message = f"FormatMessage failed for code {last_error}"
+                else:
+                    error_message = "Unknown error"
+                self.logger.error(
+                    "UpdateLayeredWindow failed: code=%s message=%s", last_error, error_message
+                )
                 raise RuntimeError("UpdateLayeredWindow failed")
 
             self.logger.debug(f"Layered window updated at ({x}, {y})")
@@ -337,7 +364,7 @@ class LayeredOverlay:
                 return 0
 
             elif msg in (win32con.WM_NCLBUTTONDBLCLK, win32con.WM_LBUTTONDBLCLK):
-                # Double-click to restore
+                # Double-click to restore (callback queues work back to Tk thread).
                 self.logger.info("Double-click detected - triggering restore")
                 try:
                     self.on_restore()

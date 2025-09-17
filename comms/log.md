@@ -132,3 +132,23 @@
 [2025-09-15 17:27] [Architect]: REVIEW PASS (with minor fix): Recycle Bin refresh — fixed SHParseDisplayName call (sfgaoIn=0) and added PATHW fallback when PIDL cannot be created post-delete; keeps PIDL-first strategy. Tooltips unchanged and OK.
 [2025-09-15 19:40] [Architect]: REVIEW PASS: Tooltips topmost + Recycle Bin refresh verified — PIDL-first notifications with PATHW fallback on post-delete/parse failures; notifications dispatched on main thread; tooltips render above main window. Archiving task.
 [2025-09-15 19:42] [Architect]: CLEANUP: Centralized shell notifications — FileOperations now delegates UPDATEDIR notifications to services.shell_notify (PIDL-first with PATHW fallback) for single source of truth.
+
+[2025-09-17 10:30] [Architect]: SPEC READY: Layered overlay TypeError fix — use WIN32 null brush handle to satisfy WNDCLASS.hbrBackground without losing transparency.
+[2025-09-17 10:45] [CLAUDE]: IMPL IN_PROGRESS: Implementing layered overlay null brush fix per spec
+[2025-09-17 10:50] [CLAUDE]: IMPL DONE: Layered overlay uses stock NULL_BRUSH to restore native overlay path
+
+[2025-09-17 10:45] [Architect]: SPEC READY: Layered overlay blend struct — build BLENDFUNCTION via ctypes and pass byref to UpdateLayeredWindow to restore per-pixel alpha.
+[2025-09-17 10:08] [CLAUDE]: IMPL IN_PROGRESS: Converting layered overlay blend struct to ctypes definition per spec
+[2025-09-17 10:09] [CLAUDE]: IMPL DONE: Replaced win32gui.BLENDFUNCTION with ctypes struct to restore layered overlay updates
+
+[2025-09-17 10:55] [Architect]: SPEC READY: Layered overlay blend tuple — drop ctypes struct and pass AC_SRC_* 4-tuple to UpdateLayeredWindow for pywin32 compatibility.
+[2025-09-17 10:15] [CLAUDE]: IMPL IN_PROGRESS: Switching layered overlay blend to pywin32 tuple per spec
+[2025-09-17 10:16] [CLAUDE]: IMPL DONE: Swapped layered overlay blend struct for pywin32-compatible tuple
+
+[2025-09-17 11:10] [Architect]: SPEC READY: Layered overlay UpdateLayeredWindow via ctypes — call user32.UpdateLayeredWindow directly and log GetLastError when it fails.
+[2025-09-17 10:24] [CLAUDE]: IMPL IN_PROGRESS: Reworking layered overlay UpdateLayeredWindow call via ctypes per spec
+[2025-09-17 10:26] [CLAUDE]: IMPL DONE: Calling user32.UpdateLayeredWindow via ctypes with detailed error logging
+
+[2025-09-17 11:25] [Architect]: SPEC READY: Layered overlay restore queue — bounce WndProc double-click through a thread-safe queue drained on the Tk thread.
+[2025-09-17 11:32] [CLAUDE]: IMPL IN_PROGRESS: Queueing layered overlay restores for Tk thread per spec
+[2025-09-17 11:33] [CLAUDE]: IMPL DONE: Queued layered overlay restores for Tk thread to prevent WndProc crashes

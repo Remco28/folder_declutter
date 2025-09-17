@@ -152,3 +152,12 @@
 [2025-09-17 11:30] [Codex]: UI SPEC IN_PROGRESS: Softer main window refresh
 [2025-09-17 11:31] [Codex]: SPEC READY: comms/tasks/2025-09-17-softer-main-window.md
 [2025-09-17 11:36] [Codex]: IMPL IN_PROGRESS: 2025-09-17-softer-main-window.md
+[2025-09-17 14:24] [Codex]: UI SPEC IN_PROGRESS: Phase 11 — Logging & diagnostics foundation
+[2025-09-17 14:24] [Codex]: SPEC READY: comms/tasks/2025-09-17-phase-11-logging.md
+[2025-09-17 14:33] [Codex]: IMPL IN_PROGRESS: 2025-09-17-phase-11-logging.md
+[2025-09-17 14:36] [Codex]: IMPL DONE: Phase 11 logging foundation configured (after screenshots updated)
+[2025-09-17 15:42] [Codex]: UI SPEC IN_PROGRESS: Backup session folder cleanup
+[2025-09-17 15:42] [Codex]: SPEC READY: comms/tasks/2025-09-17-backup-session-cleanup.md
+[2025-09-17 15:44] [Codex]: IMPL IN_PROGRESS: 2025-09-17-backup-session-cleanup.md
+[2025-09-17 15:47] [Codex]: IMPL DONE: Empty backup sessions pruned on start/shutdown (after screenshots n/a)
+[2025-09-17 15:51] [Codex]: REVIEW PASS: Phase 11 logging + backup cleanup updates verified

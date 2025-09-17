@@ -56,6 +56,16 @@ class ConfigManager:
         return ConfigManager.get_appdata_dir() / "config.json"
 
     @staticmethod
+    def get_logs_dir() -> Path:
+        """Return the directory where application logs should be stored."""
+        return ConfigManager.get_appdata_dir() / "logs"
+
+    @staticmethod
+    def get_backups_root() -> Path:
+        """Return the root directory for session backup archives."""
+        return ConfigManager.get_appdata_dir() / "backups"
+
+    @staticmethod
     def load() -> dict:
         """
         Load configuration from file or return defaults

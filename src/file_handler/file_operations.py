@@ -6,6 +6,7 @@ import os
 import shutil
 import logging
 import uuid
+import threading
 from datetime import datetime
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
@@ -37,6 +38,10 @@ class FileOperations:
     Handles file operations in background threads with UI callbacks
     """
 
+    _cleanup_lock = threading.Lock()
+    _startup_cleanup_done = False
+    _shutdown_cleanup_done = False
+
     def __init__(self, root, logger=None):
         """
         Initialize file operations
@@ -49,6 +54,7 @@ class FileOperations:
         self.logger = logger or logging.getLogger(__name__)
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="FileOps")
         self.session_id = str(uuid.uuid4())[:8]
+        self._run_startup_cleanup()
 
     def move_many(self, request: Dict, on_done: Callable) -> None:
         """
@@ -374,8 +380,7 @@ class FileOperations:
         Returns:
             Path: Session backups directory
         """
-        appdata_dir = ConfigManager.get_appdata_dir()
-        backups_dir = appdata_dir / "backups" / self.session_id
+        backups_dir = ConfigManager.get_backups_root() / self.session_id
 
         try:
             backups_dir.mkdir(parents=True, exist_ok=True)
@@ -456,3 +461,62 @@ class FileOperations:
     def shutdown(self):
         """Clean shutdown of thread pool"""
         self.executor.shutdown(wait=True)
+        self._run_shutdown_cleanup()
+
+    def _run_startup_cleanup(self) -> None:
+        """Prune empty backup sessions once per process on startup."""
+        cls = self.__class__
+        with cls._cleanup_lock:
+            if cls._startup_cleanup_done:
+                return
+            cls._startup_cleanup_done = True
+        self._prune_empty_backup_sessions(skip_ids={self.session_id})
+
+    def _run_shutdown_cleanup(self) -> None:
+        """Prune empty backup sessions once when shutdown completes."""
+        cls = self.__class__
+        with cls._cleanup_lock:
+            if cls._shutdown_cleanup_done:
+                return
+            cls._shutdown_cleanup_done = True
+        self._prune_empty_backup_sessions()
+
+    def _prune_empty_backup_sessions(self, skip_ids: Optional[Set[str]] = None) -> None:
+        """Remove empty backup session directories without touching stored archives."""
+        backups_root = ConfigManager.get_backups_root()
+
+        try:
+            if not backups_root.exists():
+                return
+        except OSError as exc:
+            self.logger.debug("Skipping backup cleanup; cannot access %s: %s", backups_root, exc)
+            return
+
+        try:
+            session_dirs = list(backups_root.iterdir())
+        except OSError as exc:
+            self.logger.debug("Skipping backup cleanup; failed to enumerate %s: %s", backups_root, exc)
+            return
+
+        skip_names = skip_ids or set()
+
+        for session_dir in session_dirs:
+            if not session_dir.is_dir():
+                continue
+            if session_dir.name in skip_names:
+                continue
+
+            try:
+                has_children = any(session_dir.iterdir())
+            except OSError as exc:
+                self.logger.debug("Skipping backup cleanup for %s: %s", session_dir, exc)
+                continue
+
+            if has_children:
+                continue
+
+            try:
+                session_dir.rmdir()
+                self.logger.debug("Removed empty backup session directory %s", session_dir)
+            except OSError as exc:
+                self.logger.debug("Failed to remove empty backup directory %s: %s", session_dir, exc)

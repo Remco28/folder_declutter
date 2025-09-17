@@ -12,7 +12,8 @@ import ctypes
 from .ui.window import MainWindow
 from .services.win_integration import PassThroughController
 from .services.dragdrop import DragDropBridge
-from .config import ConfigManager
+from .services.logging_utils import configure_logging
+from .config import ConfigManager, CURRENT_VERSION
 
 # Try to import tkinterdnd2 for proper root initialization
 try:
@@ -22,19 +23,14 @@ except ImportError:
     TKINTERDND2_AVAILABLE = False
 
 
-def setup_logging():
-    """Initialize console logging"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-
-
 def main():
     """Main application entry point"""
-    setup_logging()
+    session_id, log_path = configure_logging()
     logger = logging.getLogger(__name__)
-    logger.info("Starting Kondor Decluttering Assistant - Phase 4")
+    logger.info(
+        "Starting Kondor Decluttering Assistant - Phase 4 (session=%s)",
+        session_id,
+    )
 
     # Make process DPI aware on Windows to avoid OS bitmap scaling (blurry overlays)
     if platform.system() == 'Windows':
@@ -51,7 +47,17 @@ def main():
 
     # Load configuration early
     config = ConfigManager.load()
-    logger.info("Configuration loaded")
+    config_path = ConfigManager.get_config_path()
+    logger.info("Configuration loaded from %s", config_path)
+
+    dragdrop_status = "available" if TKINTERDND2_AVAILABLE else "unavailable"
+    logger.info(
+        "Startup summary: version=%s config_path=%s dragdrop=%s log_file=%s",
+        CURRENT_VERSION,
+        config_path,
+        dragdrop_status,
+        log_path,
+    )
 
     # Create Tk root window with TkinterDnD support if available
     if TKINTERDND2_AVAILABLE:

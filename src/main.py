@@ -63,6 +63,10 @@ def main():
 
     root.title("Kondor Decluttering Assistant")
     root.attributes('-topmost', True)
+    try:
+        root.configure(bg='#f4f6f8')
+    except tk.TclError:
+        pass
 
     # Set DPI-aware scaling for Tk and reasonable default geometry
     if platform.system() == 'Windows':
@@ -96,16 +100,30 @@ def main():
             pass
 
     # Set minimum and initial window size
-    root.minsize(600, 420)
+    root.minsize(620, 420)
     try:
         # Centered reasonable default size
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-        w, h = 800, 560
+        w, h = 680, 560
         x = (sw - w) // 2
         y = (sh - h) // 3
         root.geometry(f"{w}x{h}+{x}+{y}")
     except Exception:
-        root.geometry("800x560")
+        root.geometry("680x560")
+
+    if platform.system() == 'Windows':
+        try:
+            user32 = ctypes.windll.user32
+            GWL_STYLE = -16
+            WS_MAXIMIZEBOX = 0x00010000
+            hwnd = root.winfo_id()
+            current_style = user32.GetWindowLongW(hwnd, GWL_STYLE)
+            if current_style & WS_MAXIMIZEBOX:
+                new_style = current_style & ~WS_MAXIMIZEBOX
+                user32.SetWindowLongW(hwnd, GWL_STYLE, new_style)
+                root.update_idletasks()
+        except Exception as e:
+            logger.warning(f"Failed to adjust window styles: {e}")
 
     # Initialize Windows pass-through controller
     pass_through = PassThroughController()

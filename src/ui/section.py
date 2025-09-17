@@ -8,14 +8,60 @@ from tkinter import messagebox, Menu
 import logging
 import os
 import os.path
+from typing import Dict, Optional
+
 from . import tooltip
+
+
+DEFAULT_THEME = {
+    'tile_bg': '#ffffff',
+    'tile_bg_hover': '#e6f0ff',
+    'tile_fg': '#1f2933',
+    'tile_border': '#d3d9e1',
+    'tile_invalid_border': '#d14343',
+    'font_family': 'Arial',
+    'font_size': 11,
+    'fonts': {
+        'tile_plus': ('Arial', 26, 'bold'),
+        'tile_label': ('Arial', 11),
+        'tile_label_invalid': ('Arial', 10),
+        'tile_subtle': ('Arial', 9)
+    },
+    'accent': '#4b91f1'
+}
 
 
 class SectionTile(tk.Frame):
     """Individual section tile with empty/defined states"""
     
-    def __init__(self, parent, section_id, on_add_callback, on_section_changed_callback, pass_through_controller=None):
-        super().__init__(parent, relief=tk.RAISED, borderwidth=2, width=140, height=80)
+    def __init__(
+        self,
+        parent,
+        section_id,
+        on_add_callback,
+        on_section_changed_callback,
+        pass_through_controller=None,
+        theme: Optional[Dict] = None
+    ):
+        self.theme = DEFAULT_THEME.copy()
+        supplied_theme = theme or {}
+        # Merge nested font dictionaries safely
+        base_fonts = self.theme.setdefault('fonts', {}).copy()
+        supplied_fonts = supplied_theme.get('fonts', {})
+        self.theme.update({k: v for k, v in supplied_theme.items() if k != 'fonts'})
+        self.theme['fonts'] = {**base_fonts, **supplied_fonts}
+
+        super().__init__(
+            parent,
+            relief=tk.FLAT,
+            borderwidth=0,
+            width=140,
+            height=80,
+            bg=self.theme['tile_bg'],
+            highlightbackground=self.theme['tile_border'],
+            highlightcolor=self.theme['tile_border'],
+            highlightthickness=1
+        )
         self.section_id = section_id
         self.on_add_callback = on_add_callback
         self.on_section_changed_callback = on_section_changed_callback
@@ -70,16 +116,21 @@ class SectionTile(tk.Frame):
         # Clear existing widgets
         for widget in self.winfo_children():
             widget.destroy()
-        
+
+        border_color = self.theme['tile_border']
+        self.config(bg=self.theme['tile_bg'], highlightbackground=border_color, highlightcolor=border_color)
+
         # Plus button/label
         self.display_label = tk.Label(
             self,
             text="+",
-            font=('Arial', 24, 'bold'),
-            cursor="hand2"
+            font=self.theme['fonts'].get('tile_plus', (self.theme['font_family'], 26, 'bold')),
+            cursor="hand2",
+            bg=self.theme['tile_bg'],
+            fg=self.theme['accent']
         )
         self.display_label.pack(expand=True, fill=tk.BOTH)
-        
+
         # Bind click event
         self.display_label.bind('<Button-1>', self._on_click_add)
         
@@ -94,31 +145,37 @@ class SectionTile(tk.Frame):
             widget.destroy()
 
         # Main container for label and subtitle
-        container = tk.Frame(self)
+        container = tk.Frame(self, bg=self.theme['tile_bg'])
         container.pack(expand=True, fill=tk.BOTH)
 
         # Section label
-        border_color = 'red' if not self._is_valid else None
+        border_color = self.theme['tile_invalid_border'] if not self._is_valid else self.theme['tile_border']
+        self.config(highlightbackground=border_color, highlightcolor=border_color)
+        self.config(bg=self.theme['tile_bg'])
+        label_key = 'tile_label_invalid' if not self._is_valid else 'tile_label'
+        label_font = self.theme['fonts'].get(label_key, (self.theme['font_family'], self.theme['font_size']))
         self.display_label = tk.Label(
             container,
             text=self._label,
-            font=('Arial', 10),
+            font=label_font,
             wraplength=120,
             justify='center',
-            relief=tk.SOLID if border_color else tk.FLAT,
-            borderwidth=2 if border_color else 0,
-            highlightbackground=border_color if border_color else None,
-            highlightthickness=2 if border_color else 0
+            relief=tk.FLAT,
+            borderwidth=0,
+            bg=self.theme['tile_bg'],
+            fg=self.theme['tile_fg']
         )
         self.display_label.pack(expand=True, fill=tk.BOTH)
 
         # Add subtitle for invalid sections
         if not self._is_valid:
+            subtle_font = self.theme['fonts'].get('tile_subtle', (self.theme['font_family'], max(self.theme['font_size'] - 2, 9)))
             subtitle = tk.Label(
                 container,
                 text="Missing or inaccessible",
-                font=('Arial', 8),
-                fg='gray',
+                font=subtle_font,
+                fg='#6b7280',
+                bg=self.theme['tile_bg'],
                 justify='center'
             )
             subtitle.pack(side=tk.BOTTOM, pady=(0, 2))
@@ -468,21 +525,20 @@ class SectionTile(tk.Frame):
             on: True to enable highlight, False to disable
         """
         if on:
-            # Enable drag highlight - change relief and add visual emphasis
-            self.config(relief=tk.SOLID, borderwidth=3)
-            # Store original background to restore later
-            if not hasattr(self, '_original_bg'):
-                self._original_bg = self.cget('bg')
-            # Set highlight background color
-            self.config(bg='lightblue')
+            accent = self.theme.get('accent', '#4b91f1')
+            self.config(
+                bg=self.theme.get('tile_bg_hover', self.theme['tile_bg']),
+                highlightbackground=accent,
+                highlightcolor=accent
+            )
             self.logger.debug(f"Section {self.section_id} drag highlight enabled")
         else:
-            # Disable drag highlight - restore original appearance
-            self.config(relief=tk.RAISED, borderwidth=2)
-            # Restore original background if it was stored
-            if hasattr(self, '_original_bg'):
-                self.config(bg=self._original_bg)
-                delattr(self, '_original_bg')
+            border_color = self.theme['tile_invalid_border'] if not self._is_valid else self.theme['tile_border']
+            self.config(
+                bg=self.theme['tile_bg'],
+                highlightbackground=border_color,
+                highlightcolor=border_color
+            )
             self.logger.debug(f"Section {self.section_id} drag highlight disabled")
 
     def is_valid(self):

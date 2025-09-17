@@ -119,8 +119,8 @@ def _notify_delete_pidl(path: Path) -> None:
         abs_path = str(path.resolve())
         pidl = _pidl_from_path(abs_path)
         if pidl is None:
-            # Deleted item PIDLs may not be creatable post-delete. Fallback to PATHW.
-            logger.warning(f"Could not create PIDL for delete notification: {abs_path}")
+            # Deleted item PIDLs may not be creatable post-delete. Fallback quietly.
+            logger.debug(f"PIDL unavailable for delete; falling back to PATHW: {abs_path}")
             _notify_delete_pathw(path)
             return
 
@@ -132,7 +132,7 @@ def _notify_delete_pidl(path: Path) -> None:
         )
         logger.info(f"Shell notified DELETE (PIDL): {abs_path}")
     except Exception as e:
-        logger.warning(f"PIDL delete notification failed for {path}: {e}")
+        logger.debug(f"PIDL delete notification raised {e}; falling back to PATHW for {path}")
         # Best-effort fallback to PATHW
         try:
             _notify_delete_pathw(path)
@@ -151,8 +151,8 @@ def _notify_updatedir_pidl(path: Path) -> None:
         abs_path = str(path.resolve())
         pidl = _pidl_from_path(abs_path)
         if pidl is None:
-            # Fallback to PATHW if PIDL creation fails (e.g., parsing quirks)
-            logger.warning(f"Could not create PIDL for updatedir notification: {abs_path}")
+            # PIDL parsing can fail on cloud-backed folders; fall back quietly.
+            logger.debug(f"PIDL unavailable for updatedir; falling back to PATHW: {abs_path}")
             _notify_updatedir_pathw(path)
             return
 
@@ -164,7 +164,7 @@ def _notify_updatedir_pidl(path: Path) -> None:
         )
         logger.info(f"Shell notified UPDATEDIR (PIDL): {abs_path}")
     except Exception as e:
-        logger.warning(f"PIDL updatedir notification failed for {path}: {e}")
+        logger.debug(f"PIDL updatedir notification raised {e}; falling back to PATHW for {path}")
         # Best-effort fallback to PATHW
         try:
             _notify_updatedir_pathw(path)

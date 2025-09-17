@@ -4,8 +4,14 @@ Contains 2x3 grid of section tiles, Recycle Bin, and Undo button
 """
 
 import tkinter as tk
+from tkinter import font as tkfont
 import logging
 import os
+import platform
+from pathlib import Path
+
+from PIL import Image, ImageTk
+
 from .section import SectionTile
 from .mini_overlay import MiniOverlay
 from . import tooltip
@@ -26,6 +32,19 @@ class MainWindow(tk.Frame):
         self.dragdrop_bridge = dragdrop_bridge
         self.config = config or {}
         self.config_manager = config_manager
+
+        self.theme = self._build_theme()
+        self.parent.configure(bg=self.theme['background'])
+        self.configure(bg=self.theme['background'])
+
+        self._apply_global_fonts()
+
+        self.recycle_image_source = None
+        self.recycle_image_photo = None
+        self._recycle_drop_active = False
+        self._last_recycle_icon_size = None
+
+        self._load_recycle_asset()
 
         # State tracking for sections (now persistent via config)
         self.sections = {}
@@ -51,33 +70,42 @@ class MainWindow(tk.Frame):
         self._load_sections_from_config()
         self._update_undo_button()
 
+        self.parent.bind('<Configure>', self._on_root_configure, add='+')
+        self.after_idle(lambda: self._refresh_bottom_controls())
+
         self.logger.info("MainWindow initialized")
     
     def _setup_ui(self):
         """Create the main UI layout"""
         # Main container with padding
-        main_frame = tk.Frame(self, padx=10, pady=10)
+        main_frame = tk.Frame(
+            self,
+            padx=12,
+            pady=12,
+            bg=self.theme['background']
+        )
         main_frame.pack(fill=tk.BOTH, expand=True)
-        
+
         # Section grid (2x3)
-        self.grid_frame = tk.Frame(main_frame)
-        self.grid_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-        
+        self.grid_frame = tk.Frame(main_frame, bg=self.theme['background'])
+        self.grid_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 12))
+
         # Create 6 section tiles in 2x3 grid
         self.tiles = []
         for row in range(3):
             for col in range(2):
                 section_id = row * 2 + col
                 tile = SectionTile(
-                    self.grid_frame, 
+                    self.grid_frame,
                     section_id=section_id,
                     on_add_callback=self.on_add_section,
                     on_section_changed_callback=self.on_section_changed,
-                    pass_through_controller=self.pass_through_controller
+                    pass_through_controller=self.pass_through_controller,
+                    theme=self.theme['tile']
                 )
-                tile.grid(row=row, column=col, padx=5, pady=5, sticky='nsew')
+                tile.grid(row=row, column=col, padx=8, pady=8, sticky='nsew')
                 self.tiles.append(tile)
-        
+
         # Configure grid weights for responsive layout
         for row in range(3):
             self.grid_frame.grid_rowconfigure(row, weight=1)
@@ -89,42 +117,206 @@ class MainWindow(tk.Frame):
     
     def _create_bottom_controls(self, parent):
         """Create bottom area with Recycle Bin and Undo button"""
-        bottom_frame = tk.Frame(parent)
-        bottom_frame.pack(fill=tk.X, pady=(5, 0))
-        
-        # Recycle Bin area (centered)
-        recycle_frame = tk.Frame(bottom_frame)
-        recycle_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        
-        # Recycle Bin placeholder
-        self.recycle_bin_label = tk.Label(
-            recycle_frame, 
-            text="🗑️ Recycle Bin",
-            font=('Arial', 10),
-            relief=tk.RAISED,
-            padx=10,
-            pady=5
+        bottom_frame = tk.Frame(
+            parent,
+            bg=self.theme['bottom_bar_bg'],
+            height=64,
+            padx=16,
+            pady=10
         )
-        self.recycle_bin_label.pack(anchor='center')
-        
-        # Undo button (disabled)
+        bottom_frame.pack(fill=tk.X, pady=(4, 0))
+        bottom_frame.pack_propagate(False)
+
+        controls_frame = tk.Frame(bottom_frame, bg=self.theme['bottom_bar_bg'])
+        controls_frame.pack(side=tk.RIGHT, padx=(0, 4))
+
+        self.recycle_bin_label = tk.Button(
+            controls_frame,
+            text="Recycle Bin",
+            compound='left',
+            command=lambda: None,
+            takefocus=0
+        )
+        self._style_button(self.recycle_bin_label)
+        self.recycle_bin_label.pack(side=tk.LEFT)
+
         self.undo_button = tk.Button(
-            bottom_frame,
+            controls_frame,
             text="Undo",
             state='disabled',
-            command=self.on_undo
+            command=self.on_undo,
+            takefocus=0
         )
-        self.undo_button.pack(side=tk.RIGHT, padx=(10, 0))
+        self._style_button(self.undo_button)
+        self.undo_button.pack(side=tk.LEFT, padx=(12, 0))
 
         # Initialize tooltip text and bind tooltip to Undo button
         self.undo_button.tooltip_text = "Undo last action"
         tooltip.bind_tooltip(self.undo_button, lambda: getattr(self.undo_button, 'tooltip_text', 'Undo last action'))
-    
+
     def _setup_keyboard_bindings(self):
         """Setup keyboard shortcuts"""
         self.parent.bind_all('<Control-z>', lambda e: self.on_undo())
         self.parent.focus_set()  # Ensure window can receive key events
-    
+
+    def _build_theme(self):
+        """Construct UI theme tokens used across the window"""
+        font_family = 'Segoe UI' if platform.system() == 'Windows' else 'Arial'
+        base_size = 11
+        accent = '#3a7be0'
+
+        tile_theme = {
+            'tile_bg': '#ffffff',
+            'tile_bg_hover': '#e8f1ff',
+            'tile_fg': '#1f2933',
+            'tile_border': '#d3d9e1',
+            'tile_invalid_border': '#d14343',
+            'font_family': font_family,
+            'font_size': base_size,
+            'fonts': {
+                'tile_plus': (font_family, base_size + 16, 'bold'),
+                'tile_label': (font_family, base_size),
+                'tile_label_invalid': (font_family, max(base_size - 1, 9)),
+                'tile_subtle': (font_family, max(base_size - 2, 9))
+            },
+            'accent': accent
+        }
+
+        return {
+            'background': '#f4f6f8',
+            'bottom_bar_bg': '#e8edf2',
+            'button_bg': '#ffffff',
+            'button_hover_bg': '#dbe7f5',
+            'button_active_bg': accent,
+            'button_fg': '#1f2933',
+            'button_disabled_bg': '#eef1f5',
+            'button_disabled_fg': '#9aa5b1',
+            'button_padding': (18, 12),
+            'font_family': font_family,
+            'font_size': base_size,
+            'fonts': {
+                'base': (font_family, base_size),
+                'button': (font_family, base_size + 2, 'bold')
+            },
+            'accent': accent,
+            'tile': tile_theme
+        }
+
+    def _apply_global_fonts(self):
+        """Standardize default Tk fonts to the theme family/size"""
+        try:
+            base_family = self.theme['font_family']
+            base_size = self.theme['font_size']
+
+            for font_name in ('TkDefaultFont', 'TkTextFont', 'TkMenuFont', 'TkHeadingFont'):
+                try:
+                    tkfont.nametofont(font_name).configure(family=base_family, size=base_size)
+                except tk.TclError:
+                    continue
+        except Exception as exc:
+            self.logger.warning(f"Failed to apply global fonts: {exc}")
+
+    def _load_recycle_asset(self):
+        """Load recycle icon once for reuse"""
+        try:
+            asset_path = Path(__file__).resolve().parents[2] / 'resources' / 'recycle.png'
+            if asset_path.exists():
+                self.recycle_image_source = Image.open(asset_path).convert('RGBA')
+            else:
+                self.logger.error(f"Recycle asset missing: {asset_path}")
+        except Exception as exc:
+            self.recycle_image_source = None
+            self.logger.error(f"Failed to load recycle asset: {exc}")
+
+    def _style_button(self, button):
+        """Apply shared styling to action buttons"""
+        padding_x, padding_y = self.theme['button_padding']
+        button.configure(
+            bg=self.theme['button_bg'],
+            fg=self.theme['button_fg'],
+            activebackground=self.theme['button_hover_bg'],
+            activeforeground=self.theme['button_fg'],
+            font=self.theme['fonts']['button'],
+            relief=tk.FLAT,
+            borderwidth=0,
+            highlightthickness=0,
+            padx=padding_x,
+            pady=padding_y,
+            cursor='hand2',
+            disabledforeground=self.theme['button_disabled_fg']
+        )
+        button.bind('<Enter>', lambda e, b=button: self._on_button_hover(b, True))
+        button.bind('<Leave>', lambda e, b=button: self._on_button_hover(b, False))
+
+    def _button_default_bg(self, button):
+        return self.theme['button_bg'] if str(button['state']) == 'normal' else self.theme['button_disabled_bg']
+
+    def _button_default_fg(self, button):
+        return self.theme['button_fg'] if str(button['state']) == 'normal' else self.theme['button_disabled_fg']
+
+    def _on_button_hover(self, button, entering):
+        if self._recycle_drop_active and button is self.recycle_bin_label:
+            return
+        if str(button['state']) != 'normal':
+            return
+        target_bg = self.theme['button_hover_bg'] if entering else self.theme['button_bg']
+        button.configure(bg=target_bg)
+
+    def _set_button_drop_highlight(self, active: bool):
+        if not getattr(self, 'recycle_bin_label', None):
+            return
+        self._recycle_drop_active = active
+        if active:
+            self.recycle_bin_label.configure(
+                bg=self.theme['button_active_bg'],
+                fg='#ffffff',
+                activebackground=self.theme['button_active_bg'],
+                activeforeground='#ffffff'
+            )
+        else:
+            self.recycle_bin_label.configure(
+                bg=self._button_default_bg(self.recycle_bin_label),
+                fg=self._button_default_fg(self.recycle_bin_label),
+                activebackground=self.theme['button_hover_bg'],
+                activeforeground=self.theme['button_fg']
+            )
+
+    def _refresh_bottom_controls(self):
+        """Refresh dynamic pieces of the bottom bar (icon sizing, colors)"""
+        if getattr(self, 'recycle_bin_label', None):
+            self._render_recycle_icon()
+            # Ensure button background reflects current state
+            self.recycle_bin_label.configure(bg=self._button_default_bg(self.recycle_bin_label), fg=self._button_default_fg(self.recycle_bin_label))
+        if getattr(self, 'undo_button', None):
+            self.undo_button.configure(
+                bg=self._button_default_bg(self.undo_button),
+                fg=self._button_default_fg(self.undo_button),
+                cursor='hand2' if str(self.undo_button['state']) == 'normal' else 'arrow'
+            )
+
+    def _render_recycle_icon(self):
+        if not self.recycle_image_source or not self.parent.winfo_exists():
+            return
+
+        try:
+            current_width = max(self.parent.winfo_width(), 1)
+        except Exception:
+            current_width = 680
+
+        target_size = int(max(28, min(56, current_width * 0.045)))
+        if self._last_recycle_icon_size == target_size:
+            return
+
+        resized = self.recycle_image_source.resize((target_size, target_size), Image.LANCZOS)
+        self.recycle_image_photo = ImageTk.PhotoImage(resized)
+        self.recycle_bin_label.configure(image=self.recycle_image_photo)
+        self.recycle_bin_label.image = self.recycle_image_photo
+        self._last_recycle_icon_size = target_size
+
+    def _on_root_configure(self, event):
+        if event.widget is self.parent:
+            self._refresh_bottom_controls()
+
 
     def _load_sections_from_config(self):
         """Load and restore sections from configuration"""
@@ -211,17 +403,17 @@ class MainWindow(tk.Frame):
     def _register_recycle_bin_drop_target(self):
         """Register recycle bin label as a drop target"""
         def on_enter(event):
-            self.recycle_bin_label.config(relief=tk.SUNKEN)
+            self._set_button_drop_highlight(True)
             self.dragdrop_bridge._start_drag_sequence()
             self.logger.debug("Drag enter on recycle bin")
 
         def on_leave(event):
-            self.recycle_bin_label.config(relief=tk.RAISED)
+            self._set_button_drop_highlight(False)
             # Don't restore pass-through here - only on final drop or window leave
             self.logger.debug("Drag leave on recycle bin")
 
         def on_drop(event):
-            self.recycle_bin_label.config(relief=tk.RAISED)
+            self._set_button_drop_highlight(False)
             paths = self.dragdrop_bridge.parse_drop_data(event.data)
             self.on_drop(None, paths)  # None indicates recycle bin
             self.dragdrop_bridge._end_drag_sequence()
@@ -546,6 +738,8 @@ class MainWindow(tk.Frame):
         # Update tooltip if it exists
         if hasattr(self.undo_button, 'tooltip_text'):
             self.undo_button.tooltip_text = tooltip_text
+
+        self._refresh_bottom_controls()
 
     def _handle_invalid_section_drop(self, section_id, paths, tile):
         """

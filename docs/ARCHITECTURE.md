@@ -20,7 +20,7 @@ This document outlines the architecture of the Desktop Sorter application: a lig
 ### Supporting Services
 - Logging – Standard Python logging; file handler writes to `%APPDATA%/DesktopSorter/logs/app.log` with rotation.
 - UI Tooltip Helper (`src/ui/tooltip.py`) – Centralized tooltip utility providing consistent tooltip behavior with proper z-order handling. Ensures tooltips appear above topmost windows and supports dynamic text via callables. Used by Section tiles and Undo button.
-- Shell Notifications (`src/services/shell_notify.py`) – Windows shell notification utilities for immediate Explorer/Desktop refresh. Uses PIDL-first strategy with PATHW fallback via `DS_SHELL_NOTIFY_MODE` environment variable. Provides `notify_batch_delete_and_parents()` for recycle bin operations and legacy functions `notify_updatedir()`, `notify_many()` for file moves. Main-thread dispatching from RecycleBinService and FileOperations.
+- Shell Notifications (`src/services/shell_notify.py`) – Windows shell notification utilities for immediate Explorer/Desktop refresh. Uses PIDL-first strategy with PATHW fallback via `DS_SHELL_NOTIFY_MODE` environment variable; PIDL failures now quietly fall back (logged at DEBUG) so normal PATHW successes stay noise-free. Provides `notify_batch_delete_and_parents()` for recycle bin operations and legacy functions `notify_updatedir()`, `notify_many()` for file moves. Main-thread dispatching from RecycleBinService and FileOperations.
 - No external DB, cache, or broker. Persistent state is the JSON config file.
 
 ### Process Architecture

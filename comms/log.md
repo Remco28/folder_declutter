@@ -1,7 +1,4 @@
-<!-- Example log -->
 [2025-08-26 09:00] [Gemini]: SETUP: Initialized comms directory structure and logging protocol.
-
-<!-- example log -->
 [2025-09-12 18:25] [Architect]: SPEC READY: Phase 2 — UI scaffold (2×3 grid, Undo button placeholder).
 [2025-09-12 18:40] [Developer]: IMPL DONE: Phase 2 — UI scaffold submitted for review.
 [2025-09-12 18:45] [Architect]: REVIEW PASS: Phase 2 meets spec; archived task. Minor nits noted.
@@ -152,3 +149,6 @@
 [2025-09-17 11:25] [Architect]: SPEC READY: Layered overlay restore queue — bounce WndProc double-click through a thread-safe queue drained on the Tk thread.
 [2025-09-17 11:32] [CLAUDE]: IMPL IN_PROGRESS: Queueing layered overlay restores for Tk thread per spec
 [2025-09-17 11:33] [CLAUDE]: IMPL DONE: Queued layered overlay restores for Tk thread to prevent WndProc crashes
+[2025-09-17 11:30] [Codex]: UI SPEC IN_PROGRESS: Softer main window refresh
+[2025-09-17 11:31] [Codex]: SPEC READY: comms/tasks/2025-09-17-softer-main-window.md
+[2025-09-17 11:36] [Codex]: IMPL IN_PROGRESS: 2025-09-17-softer-main-window.md

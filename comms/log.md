@@ -161,3 +161,10 @@
 [2025-09-17 15:44] [Codex]: IMPL IN_PROGRESS: 2025-09-17-backup-session-cleanup.md
 [2025-09-17 15:47] [Codex]: IMPL DONE: Empty backup sessions pruned on start/shutdown (after screenshots n/a)
 [2025-09-17 15:51] [Codex]: REVIEW PASS: Phase 11 logging + backup cleanup updates verified
+
+[2025-09-17 16:13] [Architect]: SPEC READY: comms/tasks/2025-09-17-clear-all-and-section-interactions.md
+[2025-09-17 16:15] [Codex]: UI SPEC IN_PROGRESS: Clear-all and section interactions
+[2025-09-17 16:15] [Codex]: SPEC READY: comms/tasks/2025-09-17-clear-all-and-section-interactions.md
+[2025-09-17 16:15] [Codex]: IMPL IN_PROGRESS: 2025-09-17-clear-all-and-section-interactions.md
+[2025-09-17 16:23] [Codex]: IMPL DONE: Clear-all control, double-click open, context menu simplified (after screenshot pending)
+[2025-09-17 16:35] [Architect]: REVIEW PASS: Clear-all control, double-click open, context menu simplified

@@ -37,8 +37,8 @@ DesktopSorter/
 
 ## File Descriptions
 - **src/main.py**: The main script that initializes the app, sets up the Tkinter root window, and coordinates between UI, config, and file handling modules.
-- **src/ui/window.py**: Main window with 2×3 section grid, DnD setup, Recycle Bin target, undo wiring, and pass-through coordination.
-- **src/ui/section.py**: Section tile UI + logic: label/path management, validity state, tooltips, and context menu (Change/Rename/Remove; Reset planned).
+- **src/ui/window.py**: Main window with 2×3 section grid, DnD setup, Recycle Bin target, undo wiring, pass-through coordination, and the clear-all control (with confirmation + config persistence) alongside launch helpers for opening section folders and tailored hover styling for the action buttons.
+- **src/ui/section.py**: Section tile UI + logic: label/path management, validity state, light-yellow drag highlight, compact info icon tooltip for paths, simplified context menu (rename/remove), and double-click handling to request folder opens via the window.
 - **src/ui/dialogs.py**: Dialogs: overwrite/skip/cancel, recycle confirmation, folder picker, text input, and invalid-target prompts.
 - **src/config/config_manager.py**: Handles reading/writing section configurations (labels, paths) to a JSON file in the user's AppData folder.
 - **src/config/defaults.py**: Stores default settings, such as the Recycle Bin section's path and label.

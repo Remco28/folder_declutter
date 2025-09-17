@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def bind_tooltip(widget, text_provider, *, offset=(10, 10), wraplength=240, font=('Arial', 8), bg='lightyellow'):
+def bind_tooltip(widget, text_provider, *, offset=(16, -20), wraplength=240, font=('Arial', 8), bg='white'):
     """
     Bind a tooltip to a widget with proper z-order handling.
 
@@ -56,10 +56,6 @@ def bind_tooltip(widget, text_provider, *, offset=(10, 10), wraplength=240, font
             except Exception:
                 pass
 
-            # Position tooltip
-            x, y = event.x_root + offset[0], event.y_root + offset[1]
-            tip.wm_geometry(f"+{x}+{y}")
-
             # Create tooltip label
             label = tk.Label(
                 tip,
@@ -72,6 +68,28 @@ def bind_tooltip(widget, text_provider, *, offset=(10, 10), wraplength=240, font
                 justify='left'
             )
             label.pack()
+
+            tip.update_idletasks()
+
+            # Determine placement relative to cursor, keeping tooltip onscreen
+            tip_width = tip.winfo_width()
+            tip_height = tip.winfo_height()
+            screen_width = tip.winfo_screenwidth()
+            screen_height = tip.winfo_screenheight()
+            cursor_x, cursor_y = event.x_root, event.y_root
+
+            x = cursor_x + offset[0]
+            y = cursor_y + offset[1]
+
+            if x + tip_width > screen_width:
+                x = max(0, cursor_x - tip_width - abs(offset[0]))
+
+            if y < 0:
+                y = cursor_y + abs(offset[1])
+            elif y + tip_height > screen_height:
+                y = max(0, cursor_y - tip_height - abs(offset[1]))
+
+            tip.wm_geometry(f"+{x}+{y}")
 
             # Store tooltip window reference
             widget._tooltip_win = tip

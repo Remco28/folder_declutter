@@ -4,11 +4,12 @@ Contains 2x3 grid of section tiles, Recycle Bin, and Undo button
 """
 
 import tkinter as tk
-from tkinter import font as tkfont
+from tkinter import font as tkfont, messagebox
 import logging
 import os
 import platform
 from pathlib import Path
+import subprocess
 
 from PIL import Image, ImageTk
 
@@ -69,6 +70,7 @@ class MainWindow(tk.Frame):
         self._setup_minimize_handling()
         self._load_sections_from_config()
         self._update_undo_button()
+        self._update_clear_all_button_state()
 
         self.parent.bind('<Configure>', self._on_root_configure, add='+')
         self.after_idle(lambda: self._refresh_bottom_controls())
@@ -100,6 +102,7 @@ class MainWindow(tk.Frame):
                     section_id=section_id,
                     on_add_callback=self.on_add_section,
                     on_section_changed_callback=self.on_section_changed,
+                    on_open_callback=self.on_open_section,
                     pass_through_controller=self.pass_through_controller,
                     theme=self.theme['tile']
                 )
@@ -138,6 +141,7 @@ class MainWindow(tk.Frame):
             takefocus=0
         )
         self._style_button(self.recycle_bin_label)
+        self.recycle_bin_label.configure(activebackground=self._button_default_bg(self.recycle_bin_label))
         self.recycle_bin_label.pack(side=tk.LEFT)
 
         self.undo_button = tk.Button(
@@ -148,11 +152,19 @@ class MainWindow(tk.Frame):
             takefocus=0
         )
         self._style_button(self.undo_button)
+        self.undo_button.configure(activebackground=self._hover_bg_for_button(self.undo_button))
         self.undo_button.pack(side=tk.LEFT, padx=(12, 0))
 
-        # Initialize tooltip text and bind tooltip to Undo button
-        self.undo_button.tooltip_text = "Undo last action"
-        tooltip.bind_tooltip(self.undo_button, lambda: getattr(self.undo_button, 'tooltip_text', 'Undo last action'))
+        self.clear_all_button = tk.Button(
+            controls_frame,
+            text="Clear All",
+            state='disabled',
+            command=self.on_clear_all,
+            takefocus=0
+        )
+        self._style_button(self.clear_all_button)
+        self.clear_all_button.configure(activebackground=self._hover_bg_for_button(self.clear_all_button))
+        self.clear_all_button.pack(side=tk.LEFT, padx=(12, 0))
 
     def _setup_keyboard_bindings(self):
         """Setup keyboard shortcuts"""
@@ -179,7 +191,8 @@ class MainWindow(tk.Frame):
                 'tile_label_invalid': (font_family, max(base_size - 1, 9)),
                 'tile_subtle': (font_family, max(base_size - 2, 9))
             },
-            'accent': accent
+            'accent': accent,
+            'tile_plus_fg': '#6b7280'
         }
 
         return {
@@ -188,6 +201,8 @@ class MainWindow(tk.Frame):
             'button_bg': '#ffffff',
             'button_hover_bg': '#dbe7f5',
             'button_active_bg': accent,
+            'button_hover_accent_bg': accent,
+            'button_hover_danger_bg': '#f08a9a',
             'button_fg': '#1f2933',
             'button_disabled_bg': '#eef1f5',
             'button_disabled_fg': '#9aa5b1',
@@ -254,12 +269,21 @@ class MainWindow(tk.Frame):
     def _button_default_fg(self, button):
         return self.theme['button_fg'] if str(button['state']) == 'normal' else self.theme['button_disabled_fg']
 
+    def _hover_bg_for_button(self, button):
+        if button is getattr(self, 'clear_all_button', None):
+            return self.theme['button_hover_danger_bg']
+        if button is getattr(self, 'recycle_bin_label', None):
+            return self._button_default_bg(button)
+        if button is getattr(self, 'undo_button', None):
+            return self.theme['button_hover_accent_bg']
+        return self.theme['button_hover_bg']
+
     def _on_button_hover(self, button, entering):
         if self._recycle_drop_active and button is self.recycle_bin_label:
             return
         if str(button['state']) != 'normal':
             return
-        target_bg = self.theme['button_hover_bg'] if entering else self.theme['button_bg']
+        target_bg = self._hover_bg_for_button(button) if entering else self._button_default_bg(button)
         button.configure(bg=target_bg)
 
     def _set_button_drop_highlight(self, active: bool):
@@ -277,7 +301,7 @@ class MainWindow(tk.Frame):
             self.recycle_bin_label.configure(
                 bg=self._button_default_bg(self.recycle_bin_label),
                 fg=self._button_default_fg(self.recycle_bin_label),
-                activebackground=self.theme['button_hover_bg'],
+                activebackground=self._hover_bg_for_button(self.recycle_bin_label),
                 activeforeground=self.theme['button_fg']
             )
 
@@ -286,12 +310,24 @@ class MainWindow(tk.Frame):
         if getattr(self, 'recycle_bin_label', None):
             self._render_recycle_icon()
             # Ensure button background reflects current state
-            self.recycle_bin_label.configure(bg=self._button_default_bg(self.recycle_bin_label), fg=self._button_default_fg(self.recycle_bin_label))
+            self.recycle_bin_label.configure(
+                bg=self._button_default_bg(self.recycle_bin_label),
+                fg=self._button_default_fg(self.recycle_bin_label),
+                activebackground=self._hover_bg_for_button(self.recycle_bin_label)
+            )
         if getattr(self, 'undo_button', None):
             self.undo_button.configure(
                 bg=self._button_default_bg(self.undo_button),
                 fg=self._button_default_fg(self.undo_button),
+                activebackground=self._hover_bg_for_button(self.undo_button),
                 cursor='hand2' if str(self.undo_button['state']) == 'normal' else 'arrow'
+            )
+        if getattr(self, 'clear_all_button', None):
+            self.clear_all_button.configure(
+                bg=self._button_default_bg(self.clear_all_button),
+                fg=self._button_default_fg(self.clear_all_button),
+                activebackground=self._hover_bg_for_button(self.clear_all_button),
+                cursor='hand2' if str(self.clear_all_button['state']) == 'normal' else 'arrow'
             )
 
     def _render_recycle_icon(self):
@@ -649,7 +685,9 @@ class MainWindow(tk.Frame):
             # Save config
             self.config_manager.save(self.config)
             self.logger.debug(f"Section {section_id} persisted to config")
-    
+
+        self._update_clear_all_button_state()
+
     def on_undo(self):
         """Handle undo action"""
         if not self.undo_service.can_undo():
@@ -730,16 +768,189 @@ class MainWindow(tk.Frame):
         if self.undo_service.can_undo():
             self.undo_button.config(state='normal')
             batch_count = self.undo_service.get_stack_depth()
-            tooltip_text = f"Undo last action ({batch_count} batch{'es' if batch_count != 1 else ''} available)"
         else:
             self.undo_button.config(state='disabled')
-            tooltip_text = "Undo last action"
-
-        # Update tooltip if it exists
-        if hasattr(self.undo_button, 'tooltip_text'):
-            self.undo_button.tooltip_text = tooltip_text
 
         self._refresh_bottom_controls()
+
+    def _update_clear_all_button_state(self):
+        """Enable or disable the Clear All button based on configured sections."""
+        if not getattr(self, 'clear_all_button', None):
+            return
+
+        has_sections = bool(self.sections)
+        state = 'normal' if has_sections else 'disabled'
+        self.clear_all_button.config(state=state)
+        self._refresh_bottom_controls()
+
+    def _run_with_topmost_disabled(self, func):
+        """Temporarily disable the topmost flag while running the provided callable."""
+        try:
+            self.parent.attributes('-topmost', False)
+        except Exception:
+            pass
+
+        try:
+            return func()
+        finally:
+            try:
+                self.parent.attributes('-topmost', True)
+                self.parent.lift()
+                self.parent.focus_force()
+            except Exception:
+                pass
+
+    def on_clear_all(self):
+        """Clear all configured sections after user confirmation."""
+        if not self.sections:
+            return
+
+        root = self.parent
+        response = False
+
+        def _ask_confirmation():
+            return messagebox.askyesno("Clear All", "Clear all folders?", parent=root)
+
+        if self.pass_through_controller:
+            with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                try:
+                    root.attributes('-topmost', False)
+                except Exception:
+                    pass
+                try:
+                    response = _ask_confirmation()
+                finally:
+                    try:
+                        root.attributes('-topmost', True)
+                        root.lift()
+                        root.focus_force()
+                    except Exception:
+                        pass
+        else:
+            try:
+                root.attributes('-topmost', False)
+            except Exception:
+                pass
+            try:
+                response = _ask_confirmation()
+            finally:
+                try:
+                    root.attributes('-topmost', True)
+                    root.lift()
+                    root.focus_force()
+                except Exception:
+                    pass
+
+        if not response:
+            self.logger.info("Clear All cancelled by user")
+            return
+
+        populated_tiles = [tile for tile in self.tiles if tile.has_path()]
+        if not populated_tiles:
+            self.logger.info("Clear All requested but no populated tiles were found")
+            self._update_clear_all_button_state()
+            return
+
+        self.logger.info("Clearing all configured sections")
+        for tile in populated_tiles:
+            tile.clear_section()
+
+        self.sections.clear()
+
+        self._update_clear_all_button_state()
+        self._update_undo_button()
+
+    def on_open_section(self, section_id: int) -> None:
+        """Handle double-click requests to open a section's configured folder."""
+        if section_id < 0 or section_id >= len(self.tiles):
+            self.logger.warning(f"Open request for invalid section id {section_id}")
+            return
+
+        if section_id not in self.sections:
+            self.logger.warning(f"Open request for undefined section {section_id}")
+            return
+
+        tile = self.tiles[section_id]
+        section_data = self.sections.get(section_id)
+        path = section_data.get('path') if section_data else None
+        label = section_data.get('label') if section_data else None
+
+        if not path:
+            self.logger.warning(f"Open request for section {section_id} without a configured path")
+            return
+
+        if not tile.revalidate():
+            reason = tile.get_invalid_reason() or 'Unknown reason'
+            self.logger.warning(f"Cannot open section {section_id}: {reason}")
+            self._handle_invalid_section_drop(section_id, None, tile)
+            return
+
+        self.logger.info(f"Opening folder for section {section_id}: {path}")
+
+        error_holder = {'error': None}
+
+        def attempt_open():
+            try:
+                self._open_path(path)
+            except Exception as exc:  # noqa: BLE001 - show detailed feedback to user
+                error_holder['error'] = exc
+
+        if self.pass_through_controller:
+            with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                self._run_with_topmost_disabled(attempt_open)
+        else:
+            self._run_with_topmost_disabled(attempt_open)
+
+        if error_holder['error']:
+            self.logger.error(
+                f"Failed to open folder for section {section_id} ({path}): {error_holder['error']}"
+            )
+            self._show_open_error(label or f"Section {section_id}", path, error_holder['error'])
+        else:
+            self.logger.info(f"Folder opened successfully for section {section_id}")
+
+    def _open_path(self, path: str) -> None:
+        """Open the provided filesystem path using the platform shell."""
+        system = platform.system()
+        if system == 'Windows':
+            os.startfile(path)  # type: ignore[attr-defined]
+            return
+
+        command = ['open', path] if system == 'Darwin' else ['xdg-open', path]
+
+        try:
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError(f"Command not found: {command[0]}") from exc
+
+        if system == 'Darwin':
+            return
+
+        try:
+            return_code = process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            return
+
+        if return_code != 0:
+            raise RuntimeError(f"{command[0]} exited with code {return_code}")
+
+    def _show_open_error(self, label: str, path: str, error: Exception) -> None:
+        """Display an error dialog when opening a folder fails."""
+        message = f"Could not open '{label}'.\n{path}\n\n{error}"
+
+        def _show():
+            messagebox.showerror("Open Folder", message, parent=self.parent)
+
+        if self.pass_through_controller:
+            with self.pass_through_controller.temporarily_disable_while(lambda: None):
+                self._run_with_topmost_disabled(_show)
+        else:
+            self._run_with_topmost_disabled(_show)
+
 
     def _handle_invalid_section_drop(self, section_id, paths, tile):
         """
@@ -750,6 +961,7 @@ class MainWindow(tk.Frame):
             paths: List of paths that were dropped
             tile: The SectionTile instance
         """
+        dropped_paths = paths or []
         section_data = self.sections[section_id]
         label = section_data.get('label', f'Section {section_id}')
         current_path = section_data.get('path', '')
@@ -826,15 +1038,15 @@ class MainWindow(tk.Frame):
                 updated_section_data = self.sections[section_id]
                 target_dir = updated_section_data.get('path')
 
-                if target_dir and tile.is_valid():
+                if target_dir and tile.is_valid() and dropped_paths:
                     move_request = {
-                        'sources': paths,
+                        'sources': dropped_paths,
                         'target_dir': target_dir,
                         'options': {}
                     }
 
                     self.file_operations.move_many(move_request, self._on_move_done)
-                    self.logger.info(f"Proceeding with move after path reselect: {len(paths)} items to {target_dir}")
+                    self.logger.info(f"Proceeding with move after path reselect: {len(dropped_paths)} items to {target_dir}")
                 else:
                     self.logger.warning(f"Section {section_id} still invalid after reselect")
 

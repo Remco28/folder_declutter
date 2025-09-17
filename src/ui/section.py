@@ -27,7 +27,8 @@ DEFAULT_THEME = {
         'tile_label_invalid': ('Arial', 10),
         'tile_subtle': ('Arial', 9)
     },
-    'accent': '#4b91f1'
+    'accent': '#4b91f1',
+    'tile_plus_fg': '#6b7280'
 }
 
 
@@ -40,6 +41,7 @@ class SectionTile(tk.Frame):
         section_id,
         on_add_callback,
         on_section_changed_callback,
+        on_open_callback=None,
         pass_through_controller=None,
         theme: Optional[Dict] = None
     ):
@@ -65,6 +67,7 @@ class SectionTile(tk.Frame):
         self.section_id = section_id
         self.on_add_callback = on_add_callback
         self.on_section_changed_callback = on_section_changed_callback
+        self.on_open_callback = on_open_callback
         self.pass_through_controller = pass_through_controller
         self.logger = logging.getLogger(__name__)
         
@@ -81,6 +84,9 @@ class SectionTile(tk.Frame):
         # UI elements
         self.display_label = None
         self.context_menu = None
+        self.info_button = None
+        self._defined_container = None
+        self._invalid_subtitle = None
 
         self._setup_ui()
         
@@ -127,7 +133,7 @@ class SectionTile(tk.Frame):
             font=self.theme['fonts'].get('tile_plus', (self.theme['font_family'], 26, 'bold')),
             cursor="hand2",
             bg=self.theme['tile_bg'],
-            fg=self.theme['accent']
+            fg=self.theme.get('tile_plus_fg', self.theme.get('accent', '#4b91f1'))
         )
         self.display_label.pack(expand=True, fill=tk.BOTH)
 
@@ -137,16 +143,21 @@ class SectionTile(tk.Frame):
         # Remove any existing tooltips and context menu
         self._unbind_tooltip()
         self._unbind_context_menu()
+        self.info_button = None
+        self._defined_container = None
+        self._invalid_subtitle = None
     
     def _show_defined_state(self):
         """Show tile in defined state with label"""
         # Clear existing widgets
+        self._unbind_tooltip()
         for widget in self.winfo_children():
             widget.destroy()
 
         # Main container for label and subtitle
         container = tk.Frame(self, bg=self.theme['tile_bg'])
         container.pack(expand=True, fill=tk.BOTH)
+        self._defined_container = container
 
         # Section label
         border_color = self.theme['tile_invalid_border'] if not self._is_valid else self.theme['tile_border']
@@ -163,7 +174,8 @@ class SectionTile(tk.Frame):
             relief=tk.FLAT,
             borderwidth=0,
             bg=self.theme['tile_bg'],
-            fg=self.theme['tile_fg']
+            fg=self.theme['tile_fg'],
+            cursor='hand2'
         )
         self.display_label.pack(expand=True, fill=tk.BOTH)
 
@@ -179,10 +191,30 @@ class SectionTile(tk.Frame):
                 justify='center'
             )
             subtitle.pack(side=tk.BOTTOM, pady=(0, 2))
+            self._invalid_subtitle = subtitle
+        else:
+            self._invalid_subtitle = None
+
+        # Info button for path tooltip
+        badge_font = self.theme['fonts'].get('tile_subtle', (self.theme['font_family'], max(self.theme['font_size'] - 2, 9)))
+        self.info_button = tk.Label(
+            container,
+            text='/',
+            font=badge_font,
+            bg='#ffffff',
+            fg='#a1a1aa',
+            cursor='hand2',
+            relief=tk.SOLID,
+            borderwidth=1,
+            highlightthickness=0
+        )
+        self.info_button.place(relx=1.0, rely=0.0, anchor='ne', x=-6, y=6, width=18, height=18)
 
         # Add tooltip and context menu
         self._bind_tooltip()
         self._bind_context_menu()
+        self._bind_open_shortcut()
+        self._apply_background(self.theme['tile_bg'])
     
     def _ensure_context_menu(self):
         """Ensure context menu exists and is valid, creating/recreating as needed"""
@@ -197,33 +229,40 @@ class SectionTile(tk.Frame):
     def _populate_context_menu(self, menu):
         """Populate context menu with items"""
         menu.delete(0, 'end')
-        menu.add_command(label="Change Location...", command=self._change_location)
-        menu.add_command(label="Rename Label...", command=self._rename_label)
-        menu.add_separator()
-        menu.add_command(label="Reset Section...", command=self._reset_section)
-        menu.add_separator()
+        menu.add_command(label="Rename Section...", command=self._rename_label)
         menu.add_command(label="Remove Location", command=self._remove_location)
     
     def _bind_tooltip(self):
         """Bind tooltip events for defined state"""
-        if self._path and self.display_label:
-            tooltip.bind_tooltip(self.display_label, lambda: self._build_section_tooltip_text())
-    
+        if self._path and self.info_button:
+            tooltip.bind_tooltip(self.info_button, lambda: self._build_section_tooltip_text(), offset=(16, -24))
+
     def _unbind_tooltip(self):
         """Unbind tooltip events"""
         if self.display_label:
             tooltip.unbind_tooltip(self.display_label)
-    
+        if self.info_button:
+            tooltip.unbind_tooltip(self.info_button)
+
     def _bind_context_menu(self):
         """Bind right-click context menu for defined state"""
         if self.display_label:
             self.display_label.bind('<Button-3>', self._show_context_menu)
-    
+
     def _unbind_context_menu(self):
         """Unbind context menu"""
         if self.display_label:
             self.display_label.unbind('<Button-3>')
-    
+
+    def _bind_open_shortcut(self):
+        """Bind double-click shortcut for opening the configured folder."""
+        if self.display_label and self.on_open_callback and self._path:
+            self.display_label.bind('<Double-Button-1>', self._on_double_click_open)
+
+    def _on_double_click_open(self, event):
+        if self.on_open_callback and self._path:
+            self.on_open_callback(self.section_id)
+
     def _build_section_tooltip_text(self):
         """Build tooltip text for section display"""
         if not self._path:
@@ -303,7 +342,7 @@ class SectionTile(tk.Frame):
     def _rename_label(self):
         """Handle Rename Label context menu item"""
         from .dialogs import prompt_text
-        
+
         root = self.winfo_toplevel()
         if self.pass_through_controller:
             with self.pass_through_controller.temporarily_disable_while(lambda: None):
@@ -312,7 +351,7 @@ class SectionTile(tk.Frame):
                 except Exception:
                     pass
                 try:
-                    new_label = prompt_text("Rename Label", self._label, parent=root)
+                    new_label = prompt_text("Rename Section", self._label, parent=root)
                 finally:
                     try:
                         root.attributes('-topmost', True)
@@ -326,7 +365,7 @@ class SectionTile(tk.Frame):
             except Exception:
                 pass
             try:
-                new_label = prompt_text("Rename Label", self._label, parent=root)
+                new_label = prompt_text("Rename Section", self._label, parent=root)
             finally:
                 try:
                     root.attributes('-topmost', True)
@@ -524,22 +563,42 @@ class SectionTile(tk.Frame):
         Args:
             on: True to enable highlight, False to disable
         """
+        border_color = self.theme['tile_invalid_border'] if not self._is_valid else self.theme['tile_border']
+        base_bg = self.theme['tile_bg']
+        highlight_bg = '#fff3b0'
+
         if on:
-            accent = self.theme.get('accent', '#4b91f1')
-            self.config(
-                bg=self.theme.get('tile_bg_hover', self.theme['tile_bg']),
-                highlightbackground=accent,
-                highlightcolor=accent
-            )
+            self._apply_background(highlight_bg)
             self.logger.debug(f"Section {self.section_id} drag highlight enabled")
         else:
-            border_color = self.theme['tile_invalid_border'] if not self._is_valid else self.theme['tile_border']
-            self.config(
-                bg=self.theme['tile_bg'],
-                highlightbackground=border_color,
-                highlightcolor=border_color
-            )
+            self._apply_background(base_bg)
             self.logger.debug(f"Section {self.section_id} drag highlight disabled")
+
+        self.config(highlightbackground=border_color, highlightcolor=border_color)
+
+    def _apply_background(self, color: str) -> None:
+        """Apply a background color to the tile and primary child widgets."""
+        self.config(bg=color)
+        if self.display_label:
+            self.display_label.configure(bg=color)
+        if self._defined_container:
+            self._defined_container.configure(bg=color)
+        if self.info_button:
+            self.info_button.configure(bg='#ffffff')
+        if self._invalid_subtitle:
+            self._invalid_subtitle.configure(bg=color)
+
+    def has_path(self) -> bool:
+        """Return True when the section currently has a configured path."""
+        return bool(self._path)
+
+    def get_path(self) -> Optional[str]:
+        """Return the configured path for this section, if any."""
+        return self._path
+
+    def get_label(self) -> Optional[str]:
+        """Return the current label for this section, if any."""
+        return self._label
 
     def is_valid(self):
         """

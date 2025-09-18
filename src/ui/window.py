@@ -19,6 +19,7 @@ from . import tooltip
 from ..file_handler.file_operations import FileOperations
 from ..services.undo import UndoService
 from ..services.recycle_bin import RecycleBinService
+from ..services.win_integration import get_hwnd, set_window_icon_to_folder
 from .dialogs import prompt_confirm_recycle, prompt_invalid_target, prompt_select_folder
 
 
@@ -74,6 +75,16 @@ class MainWindow(tk.Frame):
 
         self.parent.bind('<Configure>', self._on_root_configure, add='+')
         self.after_idle(lambda: self._refresh_bottom_controls())
+
+        # Set Windows folder icon if on Windows
+        try:
+            hwnd = get_hwnd(self.parent)
+            if hwnd:
+                set_window_icon_to_folder(hwnd, self.logger)
+            else:
+                self.logger.debug("Could not get HWND for icon setting")
+        except Exception as e:
+            self.logger.warning(f"Failed to set folder icon: {e}")
 
         self.logger.info("MainWindow initialized")
     

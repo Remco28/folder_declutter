@@ -168,3 +168,8 @@
 [2025-09-17 16:15] [Codex]: IMPL IN_PROGRESS: 2025-09-17-clear-all-and-section-interactions.md
 [2025-09-17 16:23] [Codex]: IMPL DONE: Clear-all control, double-click open, context menu simplified (after screenshot pending)
 [2025-09-17 16:35] [Architect]: REVIEW PASS: Clear-all control, double-click open, context menu simplified
+[2025-09-17 18:43] [Codex]: UI POLISH DONE: Button hovers refined, section info badge restyled, tooltip offsets adjusted
+[2025-09-18 11:05] [Architect]: SPEC READY: Set Windows folder icon to default shell folder icon.
+[2025-09-18 11:10] [CLAUDE]: IMPL IN_PROGRESS: Set Windows folder icon - implementing SHGetFileInfoW-based icon loading with ctypes, proper handle cleanup, and MainWindow integration
+[2025-09-18 11:30] [CLAUDE]: IMPL DONE: Set Windows folder icon complete - added _load_standard_folder_icons() and set_window_icon_to_folder() to win_integration.py with proper handle cleanup, enhanced get_hwnd() with ctypes fallback, integrated into MainWindow.__init__, tested non-Windows graceful behavior
+[2025-09-18 11:45] [Architect]: REVIEW PASS (with minor fix): Windows folder icon applied via ctypes; corrected GetLastError helper and removed temporary screenshot.

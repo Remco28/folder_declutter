@@ -113,7 +113,7 @@ Click overlay → hide overlay → deiconify + raise + focus main window
 - Drag sessions: DragDropBridge tracks a drag sequence across tiles; pass-through is disabled on first enter and restored once the drag leaves the toplevel or on drop, preserving the prior pass-through state.
 - Dialog z-order: Dialogs are parented to the main window; the app temporarily clears `-topmost` so system dialogs (folder picker, text input, overwrite) appear above, then restores it afterward.
 - Overlay mode control: `DS_OVERLAY_MODE` env var controls overlay implementation ('auto', 'layered', 'tk'); `DS_OVERLAY_DEBUG` enables verbose overlay event logging for troubleshooting.
-- Packaging: `pyinstaller.spec` must include `tkinterdnd2` resources and `resources/icon.png`. Verify DnD works in the bundled .exe.
+- Packaging: PyInstaller build system (`build/package.py` + `build/DesktopSorter.spec`) bundles tkinterdnd2 native libraries and `resources/` assets into `dist/DesktopSorter/DesktopSorter.exe`. Verify DnD works in the bundled .exe.
 - Observability: INFO logs include actions (drop target, counts), WARN/ERROR capture failures (path, errno). Avoid logging full sensitive paths in public builds if required.
 - Accessibility/UX: Labels are readable by screen readers; highlight state visible in high contrast.
 
@@ -122,6 +122,37 @@ Click overlay → hide overlay → deiconify + raise + focus main window
 - Guard UI responsiveness: no blocking I/O on main thread; use dialogs sparingly and contextually.
 - Validate and normalize user-provided paths; prompt for reselect on missing paths.
 - Add focused tests around config persistence and conflict resolution logic; manual checklist covers DnD and pass-through.
+
+## Packaging Architecture
+
+The Windows packaging system uses PyInstaller to create standalone executables. Key components:
+
+### Build System
+- **`build/package.py`**: Main packaging script providing `build` and `clean` commands
+  - Locates tkinterdnd2 native libraries automatically
+  - Sets environment variables for the spec file
+  - Provides clean error handling and verbose output
+  - Supports Windows x64/x86/ARM64 tkdnd library variants
+
+- **`build/DesktopSorter.spec`**: PyInstaller specification file defining:
+  - Entry point: `src/main.py`
+  - Data bundling: entire `resources/` directory + tkinterdnd2 native libs
+  - Hidden imports: pywin32, PIL, timezone modules
+  - Executable configuration: windowed mode, icon, name
+
+### Asset Staging
+- **Resources**: Complete `resources/` directory bundled to maintain relative paths
+- **TkDND Libraries**: Windows-specific `tkdnd2.9` directory with DLLs and TCL files
+- **Icon**: `resources/icon.ico` used for executable icon (converted from PNG)
+- **Runtime lookups**: `src/services/resource_paths.py` resolves asset paths for both source runs and PyInstaller bundles (`sys._MEIPASS` aware).
+- **Dependencies**: Auto-detected pywin32 DLLs, PIL data files
+
+### Build Artifacts
+- **Distribution**: `dist/DesktopSorter/` contains the final executable and all dependencies
+- **Temporary**: `build/pyinstaller/` holds intermediate build files (cleaned automatically)
+- **Executable**: `DesktopSorter.exe` as the main entry point
+
+Usage: `python build/package.py build` or `python build/package.py clean`
 
 ## Related Docs
 - Scope: `scope.md`

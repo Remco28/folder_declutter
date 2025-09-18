@@ -8,7 +8,8 @@ import logging
 import os
 import platform
 import queue
-from typing import Callable, Optional
+from pathlib import Path
+from typing import Callable, Iterable, Optional
 
 # Transparency key for Windows chroma-key transparency
 TRANSPARENT_KEY = '#FF00FF'
@@ -19,6 +20,8 @@ try:
     LAYERED_OVERLAY_AVAILABLE = True
 except ImportError:
     LAYERED_OVERLAY_AVAILABLE = False
+
+from ..services.resource_paths import resource_path
 
 
 class MiniOverlay:
@@ -103,6 +106,27 @@ class MiniOverlay:
         if self.debug_enabled:
             self.logger.debug(f"Debug logging enabled, overlay mode: {self.overlay_mode}")
 
+    @staticmethod
+    def _icon_candidate_parts() -> Iterable[tuple[str, ...]]:
+        """Yield prioritized icon path candidates relative to project root."""
+
+        return [
+            ("resources", "icon.png"),
+            ("resources", "icon.ico"),
+            ("icon.png",),
+            ("icon.ico",),
+            ("folder_declutter.png",),
+        ]
+
+    def _find_icon_path(self) -> Optional[Path]:
+        """Locate the first available icon asset path."""
+
+        for parts in self._icon_candidate_parts():
+            icon_path = resource_path(*parts)
+            if icon_path is not None:
+                return icon_path
+        return None
+
     def _queue_layered_restore(self) -> None:
         """Queue a restore request from the layered overlay WndProc."""
         try:
@@ -177,16 +201,7 @@ class MiniOverlay:
             self.logger.debug(f"Screen: {screen_w}x{screen_h}, min_dim: {min_dimension}, target icon size: {target_size}")
 
             # Look for icon file
-            icon_path = None
-            for possible_path in [
-                "resources/icon.png",
-                "folder_declutter.png",  # Found this in the root
-                "icon.png"
-            ]:
-                if os.path.exists(possible_path):
-                    icon_path = possible_path
-                    break
-
+            icon_path = self._find_icon_path()
             if not icon_path:
                 self.logger.warning("No icon file found, using text fallback")
                 return None
@@ -222,7 +237,7 @@ class MiniOverlay:
 
             # Fallback to tkinter scaling
             try:
-                original = tk.PhotoImage(file=icon_path)
+                original = tk.PhotoImage(file=str(icon_path))
                 original_w = original.width()
                 original_h = original.height()
 
@@ -274,16 +289,7 @@ class MiniOverlay:
         """Load icon as PIL Image for layered overlay"""
         try:
             # Look for icon file
-            icon_path = None
-            for possible_path in [
-                "resources/icon.png",
-                "folder_declutter.png",
-                "icon.png"
-            ]:
-                if os.path.exists(possible_path):
-                    icon_path = possible_path
-                    break
-
+            icon_path = self._find_icon_path()
             if not icon_path:
                 self.logger.warning("No icon file found for PIL loading")
                 return None

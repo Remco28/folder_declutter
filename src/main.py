@@ -163,7 +163,15 @@ def main():
         root.bind_all('<Control-Alt-P>', debug_toggle)
     
     logger.info("UI initialized, starting main loop")
-    
+
+    # Start application minimized
+    try:
+        root.update_idletasks()
+        root.iconify()
+        logger.info("Application started minimized")
+    except Exception as exc:
+        logger.warning("Failed to start minimized: %s", exc)
+
     try:
         root.mainloop()
     except KeyboardInterrupt:

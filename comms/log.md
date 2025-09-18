@@ -173,3 +173,7 @@
 [2025-09-18 11:10] [CLAUDE]: IMPL IN_PROGRESS: Set Windows folder icon - implementing SHGetFileInfoW-based icon loading with ctypes, proper handle cleanup, and MainWindow integration
 [2025-09-18 11:30] [CLAUDE]: IMPL DONE: Set Windows folder icon complete - added _load_standard_folder_icons() and set_window_icon_to_folder() to win_integration.py with proper handle cleanup, enhanced get_hwnd() with ctypes fallback, integrated into MainWindow.__init__, tested non-Windows graceful behavior
 [2025-09-18 11:45] [Architect]: REVIEW PASS (with minor fix): Windows folder icon applied via ctypes; corrected GetLastError helper and removed temporary screenshot.
+[2025-09-18 12:05] [Architect]: SPEC READY: Start application minimized via Tk iconify sequence.
+[2025-09-18 12:10] [CLAUDE]: IMPL IN_PROGRESS: Start application minimized - adding root.iconify() call after UI setup with proper error handling
+[2025-09-18 12:15] [CLAUDE]: IMPL DONE: Start application minimized complete - added iconify call after UI initialization with update_idletasks(), proper error handling and logging, tested successful startup behavior
+[2025-09-18 12:20] [Architect]: REVIEW PASS: Start minimized implementation matches spec; window iconifies cleanly before main loop.

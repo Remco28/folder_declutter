@@ -25,8 +25,8 @@
 - [x] Phase 8.2: Section reset — one‑stop “Reset Section…” to re-pick folder and label.
 - [x] Phase 10A: Minimize‑to‑overlay — mini overlay with layered/Tk modes, centered placement, drag‑move, double‑click to restore. (Completed; spec archived.)
 - [ ] Phase 9: Packaging — PyInstaller spec, include tkdnd resources and icon; produce .exe; smoke test.
-- [ ] Phase 10: Accessibility & polish — labels readable, high-contrast, keyboard nav basics; visual refinements.
-- [ ] Phase 11: Logging & diagnostics — rotating file logs in %APPDATA%; optional DnD debug flag.
+- [x] Phase 10: Accessibility & polish — labels readable, high-contrast, keyboard nav basics; visual refinements.
+- [x] Phase 11: Logging & diagnostics — rotating file logs in %APPDATA%; optional DnD debug flag.
 - [ ] Phase 12: Beta QA — edge cases (UNC, long paths, permissions, cross-volume), performance, fixes.
 
 ## Documentation

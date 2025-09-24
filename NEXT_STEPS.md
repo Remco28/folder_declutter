@@ -1,8 +1,6 @@
 # Next Steps for Desktop Sorter
 
 ## Bugs
-- [x] Sometimes dragging into "Recycle Bin" doesn't refresh the page. Icon will persist after being removed. Refreshing will show it was moved correctly. (Fixed 2025‑09‑15 via PIDL‑first shell notifications with PATHW fallback.)
-- [x] The tooltips need to appear over the main app. (Fixed 2025‑09‑15 via centralized tooltip helper.)
 
 ## Maintenance
 - [ ] Light to moderate clean up of code
@@ -30,18 +28,9 @@
 - [ ] Phase 12: Beta QA — edge cases (UNC, long paths, permissions, cross-volume), performance, fixes.
 
 ## Documentation
-- [ ] Create README.md (usage, build, troubleshooting)
+- [x] Create README.md (usage, build, troubleshooting)
 - [ ] Write developer notes for packaging and tkdnd bundling
-- [x] Add Windows Recycle Bin service notes once implemented (Phase 7)
-- [x] Document Invalid Paths UX (Phase 8), Context Menu Robustness (Phase 8.1), Section Reset (Phase 8.2)
-- [x] Document Minimize-to-Overlay (Phase 10A)
 
 ## Follow-ups / Known Issues
 - Log verbosity: after a short soak, consider reducing `services.shell_notify` INFO logs to DEBUG to cut noise.
 - Packaging: validate tkdnd and layered overlay assets are correctly bundled in PyInstaller spec (ties to Phase 9).
-
----
-
-Notes:
-- Keep the file in the repository root so the app can fetch it via the GitHub Contents API.
-- Use `- [ ]` and `- [x]` checkboxes under headings; the parser recognizes H1–H3 section headers.

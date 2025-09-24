@@ -9,11 +9,11 @@ import os
 import tkinter as tk
 import platform
 import ctypes
-from .ui.window import MainWindow
-from .services.win_integration import PassThroughController
-from .services.dragdrop import DragDropBridge
-from .services.logging_utils import configure_logging
-from .config import ConfigManager, CURRENT_VERSION
+from src.ui.window import MainWindow
+from src.services.win_integration import PassThroughController
+from src.services.dragdrop import DragDropBridge
+from src.services.logging_utils import configure_logging
+from src.config import ConfigManager, CURRENT_VERSION
 
 # Try to import tkinterdnd2 for proper root initialization
 try:

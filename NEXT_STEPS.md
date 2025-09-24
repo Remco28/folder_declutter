@@ -1,8 +1,6 @@
 # Next Steps for Desktop Sorter
 
 ## Bugs
-- [x] Sometimes dragging into "Recycle Bin" doesn't refresh the page. Icon will persist after being removed. Refreshing will show it was moved correctly. (Fixed 2025‑09‑15 via PIDL‑first shell notifications with PATHW fallback.)
-- [x] The tooltips need to appear over the main app. (Fixed 2025‑09‑15 via centralized tooltip helper.)
 
 ## Maintenance
 - [ ] Light to moderate clean up of code
@@ -24,24 +22,15 @@
 - [x] Phase 8.1: Context menu robustness — lazy toplevel-parented menu; existence checks; safe popup wrapper.
 - [x] Phase 8.2: Section reset — one‑stop “Reset Section…” to re-pick folder and label.
 - [x] Phase 10A: Minimize‑to‑overlay — mini overlay with layered/Tk modes, centered placement, drag‑move, double‑click to restore. (Completed; spec archived.)
-- [ ] Phase 9: Packaging — PyInstaller spec, include tkdnd resources and icon; produce .exe; smoke test.
+- [x] Phase 9: Packaging — PyInstaller spec, include tkdnd resources and icon; produce .exe; smoke test.
 - [x] Phase 10: Accessibility & polish — labels readable, high-contrast, keyboard nav basics; visual refinements.
 - [x] Phase 11: Logging & diagnostics — rotating file logs in %APPDATA%; optional DnD debug flag.
 - [ ] Phase 12: Beta QA — edge cases (UNC, long paths, permissions, cross-volume), performance, fixes.
 
 ## Documentation
-- [ ] Create README.md (usage, build, troubleshooting)
+- [x] Create README.md (usage, build, troubleshooting)
 - [ ] Write developer notes for packaging and tkdnd bundling
-- [x] Add Windows Recycle Bin service notes once implemented (Phase 7)
-- [x] Document Invalid Paths UX (Phase 8), Context Menu Robustness (Phase 8.1), Section Reset (Phase 8.2)
-- [x] Document Minimize-to-Overlay (Phase 10A)
 
 ## Follow-ups / Known Issues
 - Log verbosity: after a short soak, consider reducing `services.shell_notify` INFO logs to DEBUG to cut noise.
 - Packaging: validate tkdnd and layered overlay assets are correctly bundled in PyInstaller spec (ties to Phase 9).
-
----
-
-Notes:
-- Keep the file in the repository root so the app can fetch it via the GitHub Contents API.
-- Use `- [ ]` and `- [x]` checkboxes under headings; the parser recognizes H1–H3 section headers.

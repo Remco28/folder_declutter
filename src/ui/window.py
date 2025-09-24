@@ -8,7 +8,6 @@ from tkinter import font as tkfont, messagebox
 import logging
 import os
 import platform
-from pathlib import Path
 import subprocess
 
 from PIL import Image, ImageTk
@@ -20,6 +19,7 @@ from ..file_handler.file_operations import FileOperations
 from ..services.undo import UndoService
 from ..services.recycle_bin import RecycleBinService
 from ..services.win_integration import get_hwnd, set_window_icon_to_folder
+from ..services.resource_paths import resource_path
 from .dialogs import prompt_confirm_recycle, prompt_invalid_target, prompt_select_folder
 
 
@@ -245,11 +245,11 @@ class MainWindow(tk.Frame):
     def _load_recycle_asset(self):
         """Load recycle icon once for reuse"""
         try:
-            asset_path = Path(__file__).resolve().parents[2] / 'resources' / 'recycle.png'
-            if asset_path.exists():
+            asset_path = resource_path('resources', 'recycle.png')
+            if asset_path and asset_path.exists():
                 self.recycle_image_source = Image.open(asset_path).convert('RGBA')
             else:
-                self.logger.error(f"Recycle asset missing: {asset_path}")
+                self.logger.error("Recycle asset missing: resources/recycle.png")
         except Exception as exc:
             self.recycle_image_source = None
             self.logger.error(f"Failed to load recycle asset: {exc}")

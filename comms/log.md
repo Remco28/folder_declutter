@@ -177,3 +177,20 @@
 [2025-09-18 12:10] [CLAUDE]: IMPL IN_PROGRESS: Start application minimized - adding root.iconify() call after UI setup with proper error handling
 [2025-09-18 12:15] [CLAUDE]: IMPL DONE: Start application minimized complete - added iconify call after UI initialization with update_idletasks(), proper error handling and logging, tested successful startup behavior
 [2025-09-18 12:20] [Architect]: REVIEW PASS: Start minimized implementation matches spec; window iconifies cleanly before main loop.
+[2025-09-18 12:45] [Architect]: SPEC READY: Phase 9 packaging — PyInstaller build script, tkdnd assets, docs updates.
+[2025-09-18 16:25] [CLAUDE]: IMPL IN_PROGRESS: Phase 9 packaging - implementing PyInstaller build script, spec file, tkdnd bundling, and documentation updates
+[2025-09-18 16:50] [CLAUDE]: IMPL DONE: Phase 9 packaging complete - created build/package.py script with build/clean commands, build/DesktopSorter.spec with tkdnd bundling and resources, updated docs/ARCHITECTURE.md with packaging section, updated resources/README.md with icon.ico documentation, marked Phase 9 complete in NEXT_STEPS.md, tested script functionality including tkdnd path detection and PyInstaller initialization
+[2025-09-18 17:05] [Architect]: REVIEW PASS (with minor fix): Phase 9 packaging ready — tracked build script/spec and improved clean/workpath handling.
+[2025-09-18 17:21] [Architect]: SPEC READY: Fix build/dist mismatch — comms/tasks/2025-09-18-fix-build-dist-path.md
+[2025-09-18 17:24] [Architect]: SPEC READY: Fix main entry imports — comms/tasks/2025-09-18-fix-main-entry-import.md
+[2025-09-18 17:30] [CLAUDE]: IMPL IN_PROGRESS: Fix build/dist path expectations and main entry imports for PyInstaller packaging
+[2025-09-18 17:35] [CLAUDE]: IMPL DONE: Fix build/dist path expectations and main entry imports complete - updated package.py to use BUILD_ROOT/dist path with legacy cleanup, converted main.py relative imports to absolute imports for PyInstaller compatibility
+[2025-09-18 17:30] [Architect]: REVIEW PASS: Build/dist alignment + main entry imports verified; specs archived.
+[2025-09-18 17:40] [Architect]: SPEC READY: Force PyInstaller distpath — comms/tasks/2025-09-18-force-distpath.md
+[2025-09-18 17:45] [CLAUDE]: IMPL IN_PROGRESS: Force PyInstaller distpath - adding explicit --distpath argument to ensure output goes to build/dist
+[2025-09-18 17:50] [CLAUDE]: IMPL DONE: Force PyInstaller distpath complete - added --distpath argument to PyInstaller args pointing to build/dist, enhanced error reporting to detect unexpected output locations, improved clean function warnings for misconfigured dist directories
+[2025-09-18 17:47] [Architect]: IMPL IN_PROGRESS: Force PyInstaller distpath enforcement
+[2025-09-18 17:47] [Architect]: IMPL DONE: Force PyInstaller distpath — added --distpath arg, relocates stray output, enhanced warnings, cleaned legacy dist
+[2025-09-18 18:01] [Architect]: IMPL IN_PROGRESS: Resolve packaged icon asset lookup
+[2025-09-18 18:01] [Architect]: IMPL DONE: Resource path helper + MiniOverlay icon lookup supports PyInstaller bundle
+[2025-09-18 18:13] [Architect]: IMPL UPDATE: Main window uses resource_path for recycle assets

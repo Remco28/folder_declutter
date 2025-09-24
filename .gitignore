@@ -15,7 +15,9 @@ folder_declutter_env/
 
 # Packaging / distribution
 .Python
-build/
+build/*
+!build/package.py
+!build/DesktopSorter.spec
 develop-eggs/
 dist/
 downloads/

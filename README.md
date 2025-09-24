@@ -26,7 +26,7 @@ Folder Declutter is a lightweight, always-on-top Windows utility designed to hel
 
 ## Building from Source
 
-If you want to build the application from the source code, you'll need Python and the project's dependencies.
+If you want to build the application from the source code, you'll need Python and the project's dependencies. The build process is intended for a **Windows environment**.
 
 1.  **Clone the repository:**
     ```sh
@@ -49,10 +49,17 @@ If you want to build the application from the source code, you'll need Python an
 4.  **Build the executable:**
     The project uses PyInstaller to create a standalone executable. The build process is managed by the `build/package.py` script.
 
+    To create the executable, run:
     ```sh
     python build/package.py build
     ```
     The final executable will be located in the `dist/DesktopSorter/` directory.
+
+5.  **Clean the build artifacts:**
+    To remove all generated build files, use the `clean` command:
+    ```sh
+    python build/package.py clean
+    ```
 
 ## Configuration
 

@@ -1,12 +1,14 @@
 # Next Steps for Desktop Sorter
 
+Project status: ✅ Core scope shipped, informal beta completed, entering wind-down/maintenance mode.
+
 ## Bugs
 
 ## Maintenance
-- [ ] Light to moderate clean up of code
+- [x] Light to moderate clean up of code (removed legacy drop-state debugging)
 
 ## Features
-- [ ] Add ability to "go to location" by 1. double clicking section (if its defined) 2. right click > menu > go to location
+- [x] Add ability to "go to location" by 1. double clicking section (if its defined) 2. right click > menu > go to location
 
 ## Phase Implementation
 - [x] Phase 1: Repo setup and planning — repo hygiene, requirements, architecture, phased plan.
@@ -25,11 +27,10 @@
 - [x] Phase 9: Packaging — PyInstaller spec, include tkdnd resources and icon; produce .exe; smoke test.
 - [x] Phase 10: Accessibility & polish — labels readable, high-contrast, keyboard nav basics; visual refinements.
 - [x] Phase 11: Logging & diagnostics — rotating file logs in %APPDATA%; optional DnD debug flag.
-- [ ] Phase 12: Beta QA — edge cases (UNC, long paths, permissions, cross-volume), performance, fixes.
+- [x] Phase 12: Beta QA — edge cases (UNC, long paths, permissions, cross-volume), performance, fixes. (Manual smoke + friend testing complete.)
 
 ## Documentation
 - [x] Create README.md (usage, build, troubleshooting)
-- [ ] Write developer notes for packaging and tkdnd bundling
 
 ## Follow-ups / Known Issues
 - Log verbosity: after a short soak, consider reducing `services.shell_notify` INFO logs to DEBUG to cut noise.

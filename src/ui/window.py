@@ -50,8 +50,6 @@ class MainWindow(tk.Frame):
 
         # State tracking for sections (now persistent via config)
         self.sections = {}
-        # State tracking for drops (debugging)
-        self.last_drop = None
 
         # Initialize file operations and undo service
         self.file_operations = FileOperations(self.parent, logger=self.logger)
@@ -543,13 +541,6 @@ class MainWindow(tk.Frame):
         """
         target_name = f"section {section_id}" if section_id is not None else "Recycle Bin"
         self.logger.info(f"Drop to {target_name}: {len(paths)} items")
-
-        # Store for debugging
-        self.last_drop = {
-            'section_id': section_id,
-            'paths': paths,
-            'target_name': target_name
-        }
 
         # Handle Recycle Bin drops
         if section_id is None:

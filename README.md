@@ -2,7 +2,9 @@
 
 Folder Declutter is a lightweight, always-on-top Windows utility designed to help you quickly organize files and folders. Drag items from your desktop or any Explorer window and drop them into configurable sections to move them instantly.
 
-![Folder Declutter Screenshot](resources/folder_declutter.png)
+![Folder Declutter Logo](resources/folder_declutter.png)
+![Main Window](resources/drag.gif)
+![Minimize To Logo & Move](resources/minimize.gif)
 
 ## Features
 
